@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Drupal\helfi_azure_fs;
 
 use Drupal\Core\File\FileSystem;
-use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -20,21 +20,7 @@ use Psr\Log\LoggerInterface;
  * We check whether we're operating on Azure environment and
  * fallback to normal filesystem operations on any other environment.
  */
-final class AzureFileSystem implements FileSystemInterface {
-
-  /**
-   * The file logger channel.
-   *
-   * @var \Psr\Log\LoggerInterface
-   */
-  protected LoggerInterface $logger;
-
-  /**
-   * The stream wrapper manager.
-   *
-   * @var \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface
-   */
-  protected StreamWrapperManagerInterface $streamWrapperManager;
+final class AzureFileSystem extends FileSystem {
 
   /**
    * The inner service.
@@ -50,20 +36,19 @@ final class AzureFileSystem implements FileSystemInterface {
    *   The inner service.
    * @param \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface $streamWrapperManager
    *   The stream wrapper manager.
+   * @param \Drupal\Core\Site\Settings $settings
+   *   The settings.
    * @param \Psr\Log\LoggerInterface $logger
    *   The logger.
    */
-  public function __construct(FileSystem $decorated, StreamWrapperManagerInterface $streamWrapperManager, LoggerInterface $logger) {
+  public function __construct(
+    FileSystem $decorated,
+    StreamWrapperManagerInterface $streamWrapperManager,
+    Settings $settings,
+    LoggerInterface $logger
+  ) {
     $this->decorated = $decorated;
-    $this->streamWrapperManager = $streamWrapperManager;
-    $this->logger = $logger;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function moveUploadedFile($filename, $uri) {
-    return $this->decorated->moveUploadedFile($filename, $uri);
+    parent::__construct($streamWrapperManager, $settings, $logger);
   }
 
   /**
@@ -89,36 +74,6 @@ final class AzureFileSystem implements FileSystemInterface {
   /**
    * {@inheritdoc}
    */
-  public function unlink($uri, $context = NULL) {
-    // No need to override since chmod is only performed on
-    // windows.
-    return $this->decorated->unlink($uri, $context);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function realpath($uri) {
-    return $this->decorated->realpath($uri);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function dirname($uri) {
-    return $this->decorated->dirname($uri);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function basename($uri, $suffix = NULL) {
-    return $this->decorated->basename($uri, $suffix);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function mkdir(
     $uri,
     $mode = NULL,
@@ -132,7 +87,7 @@ final class AzureFileSystem implements FileSystemInterface {
     // If the URI has a scheme, don't override the umask - schemes can handle
     // this issue in their own implementation.
     if (StreamWrapperManager::getScheme($uri)) {
-      return $this->mkdirCall($uri, $recursive, $context);
+      return $this->mkdirCall($uri, 0777, $recursive, $context);
     }
 
     // If recursive, create each missing component of the parent directory
@@ -161,7 +116,7 @@ final class AzureFileSystem implements FileSystemInterface {
         $recursive_path .= $component;
 
         if (!file_exists($recursive_path)) {
-          if (!$this->mkdirCall($recursive_path, FALSE, $context)) {
+          if (!$this->mkdirCall($recursive_path, 0777, FALSE, $context)) {
             return FALSE;
           }
         }
@@ -172,127 +127,10 @@ final class AzureFileSystem implements FileSystemInterface {
 
     // Do not check if the top-level directory already exists, as this condition
     // must cause this function to fail.
-    if (!$this->mkdirCall($uri, FALSE, $context)) {
+    if (!$this->mkdirCall($uri, 0777, FALSE, $context)) {
       return FALSE;
     }
     return TRUE;
-  }
-
-  /**
-   * Helper function to create directories.
-   *
-   * Ensures we don't pass a NULL as a context resource to
-   * mkdir() and override default mode to prevent any chmod
-   * operations.
-   *
-   * @param string $uri
-   *   A URI or pathname.
-   * @param bool $recursive
-   *   Create directories recursively, defaults to FALSE. Cannot work with a
-   *   mode which denies writing or execution to the owner of the process.
-   * @param resource $context
-   *   Refer to http://php.net/manual/ref.stream.php.
-   *
-   * @return bool
-   *   TRUE if succeeded.
-   */
-  protected function mkdirCall(string $uri, bool $recursive, $context): bool {
-    if (is_null($context)) {
-      return mkdir($uri, 0777, $recursive);
-    }
-    return mkdir($uri, 0777, $recursive, $context);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function rmdir($uri, $context = NULL) {
-    // No need to override since chmod is only called on windows.
-    return $this->decorated->rmdir($uri, $context);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function tempnam($directory, $prefix) {
-    return $this->decorated->tempnam($directory, $prefix);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function copy($source, $destination, $replace = self::EXISTS_RENAME) {
-    return $this->decorated->copy($source, $destination, $replace);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete($path) {
-    return $this->decorated->delete($path);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function deleteRecursive($path, callable $callback = NULL) {
-    return $this->decorated->deleteRecursive($path, $callback);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function move($source, $destination, $replace = self::EXISTS_RENAME) {
-    return $this->decorated->move($source, $destination, $replace);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function saveData(
-    $data,
-    $destination,
-    $replace = self::EXISTS_RENAME
-  ) {
-    return $this->decorated->saveData($data, $destination, $replace);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function prepareDirectory(
-    &$directory,
-    $options = self::MODIFY_PERMISSIONS
-  ) {
-    return $this->decorated->prepareDirectory($directory, $options);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createFilename($basename, $directory) {
-    return $this->decorated->createFilename($basename, $directory);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getDestinationFilename($destination, $replace) {
-    return $this->decorated->getDestinationFilename($destination, $replace);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getTempDirectory() {
-    return $this->decorated->getTempDirectory();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function scanDirectory($dir, $mask, array $options = []) {
-    return $this->decorated->scanDirectory($dir, $mask, $options);
   }
 
 }
