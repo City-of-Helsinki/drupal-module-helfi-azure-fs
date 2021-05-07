@@ -1,0 +1,11 @@
+{
+    "name": "drupal/helfi_azure_fs",
+    "type": "drupal-custom-module",
+    "description": "Helfi - Azure FS",
+    "license": "GPL-2.0-or-later",
+    "minimum-stability": "dev",
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
+        "drupal/coder": "^8.3"
+    }
+}
