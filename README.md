@@ -1,5 +1,7 @@
 # Drupal Azure FS
 
+![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg)
+
 Provides file system fixes for Azure.
 
 ## Requirements
