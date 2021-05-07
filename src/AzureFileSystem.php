@@ -30,6 +30,13 @@ final class AzureFileSystem extends FileSystem {
   protected FileSystem $decorated;
 
   /**
+   * Whether we're operating on azure or not.
+   *
+   * @var bool
+   */
+  protected bool $isAzure = FALSE;
+
+  /**
    * Constructs a new instance.
    *
    * @param \Drupal\Core\File\FileSystem $decorated
@@ -48,7 +55,23 @@ final class AzureFileSystem extends FileSystem {
     LoggerInterface $logger
   ) {
     $this->decorated = $decorated;
+    $this->setIsAzure((bool) getenv('AZURE_SQL_SSL_CA_PATH'));
+
     parent::__construct($streamWrapperManager, $settings, $logger);
+  }
+
+  /**
+   * Sets whether we're on azure or not.
+   *
+   * @param bool $status
+   *   Whether we're on azure or not.
+   *
+   * @return $this
+   *   The self.
+   */
+  public function setIsAzure(bool $status) : self {
+    $this->isAzure = $status;
+    return $this;
   }
 
   /**
@@ -58,7 +81,7 @@ final class AzureFileSystem extends FileSystem {
    *   TRUE if we're on Azure environment.
    */
   public function isAzure() : bool {
-    return (bool) getenv('AZURE_SQL_SSL_CA_PATH');
+    return $this->isAzure;
   }
 
   /**

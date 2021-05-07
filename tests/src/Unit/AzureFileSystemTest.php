@@ -22,8 +22,8 @@ class AzureFileSystemTest extends CoreFileSystemTest {
   protected function setUp(): void {
     parent::setUp();
 
-    putenv('AZURE_SQL_SSL_CA_PATH=/var/www');
     $this->fileSystem = new AzureFileSystem($this->fileSystem, $this->streamWrapperManager, new Settings([]), $this->logger);
+    $this->fileSystem->setIsAzure(TRUE);
   }
 
   /**
