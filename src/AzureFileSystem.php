@@ -164,10 +164,6 @@ final class AzureFileSystem implements FileSystemInterface {
           if (!$this->mkdirCall($recursive_path, FALSE, $context)) {
             return FALSE;
           }
-          // Not necessary to use self::chmod() as there is no scheme.
-          if (!chmod($recursive_path, $mode)) {
-            return FALSE;
-          }
         }
 
         $recursive_path .= DIRECTORY_SEPARATOR;
