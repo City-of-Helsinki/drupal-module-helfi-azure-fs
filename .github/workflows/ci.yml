@@ -9,8 +9,11 @@ env:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-versions: ['7.4', '8.0']
     container:
-      image: ghcr.io/city-of-helsinki/drupal-php-docker:7.4
+      image: ghcr.io/city-of-helsinki/drupal-php-docker:${{ matrix.php-versions }}
 
     services:
       db:
@@ -45,4 +48,4 @@ jobs:
           cd $DRUPAL_ROOT
           vendor/bin/drush runserver $SIMPLETEST_BASE_URL > /dev/null 2>&1 &
           chromedriver --port=4444 > /dev/null 2>&1 &
-          vendor/bin/phpunit -c $DRUPAL_ROOT/phpunit.xml.dist --verbose --group $MODULE_NAME
+          vendor/bin/phpunit -c $DRUPAL_ROOT/phpunit.platform.xml --verbose --group $MODULE_NAME
