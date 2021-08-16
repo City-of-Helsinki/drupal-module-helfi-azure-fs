@@ -46,7 +46,6 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     $this->installEntitySchema('file');
 
     foreach (['file', 'image'] as $type) {
-      // Create a boolean field and storage for validation.
       FieldStorageConfig::create([
         'field_name' => 'field_' . $type,
         'entity_type' => 'entity_test',
