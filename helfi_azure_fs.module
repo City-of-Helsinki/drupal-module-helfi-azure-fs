@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types = 1);
+
+/**
+ * @file
+ * Contains helfi azure fs hook implementations.
+ */
+
+use Drupal\Core\Entity\EntityTypeInterface;
+
+/**
+ * Implements hook_entity_field_storage_info_alter().
+ */
+function helfi_azure_fs_entity_field_storage_info_alter(
+  &$fields,
+  EntityTypeInterface $entity_type
+) {
+  $config = Drupal::config('helfi_azure_fs.settings');
+
+  if (!$config->get('use_blob_storage')) {
+    return;
+  }
+  $scheme = $config->get('storage_scheme') ?: 'azure';
+
+  /** @var \Drupal\field\Entity\FieldStorageConfig[] $fields */
+  foreach ($fields as $field) {
+    if (!in_array($field->getType(), ['file', 'image'])) {
+      continue;
+    }
+    $field->setSetting('uri_scheme', $scheme);
+  }
+}
+

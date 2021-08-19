@@ -1,0 +1,8 @@
+helfi_azure_fs.settings:
+  type: config_entity
+  mapping:
+    use_blob_storage:
+      type: boolean
+    storage_scheme:
+      type: string
+

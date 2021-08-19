@@ -6,7 +6,7 @@ namespace Drupal\Tests\helfi_azure_fs\Unit;
 
 use Drupal\Core\Site\Settings;
 use Drupal\helfi_azure_fs\AzureFileSystem;
-use Drupal\Tests\Core\File\FileSystemTest as CoreFileSystemTest;
+use Drupal\Tests\Core\File\FileSystemTest;
 use org\bovigo\vfs\vfsStream;
 
 /**
@@ -14,7 +14,7 @@ use org\bovigo\vfs\vfsStream;
  *
  * @group helfi_azure_fs
  */
-class AzureFileSystemTest extends CoreFileSystemTest {
+class AzureFileSystemTest extends FileSystemTest {
 
   /**
    * {@inheritdoc}

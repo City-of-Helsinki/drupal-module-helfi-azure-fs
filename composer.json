@@ -4,6 +4,9 @@
     "description": "Helfi - Azure FS",
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
+    "require": {
+        "drupal/flysystem_azure": "1.0.x-dev"
+    },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
         "drupal/coder": "^8.3"
