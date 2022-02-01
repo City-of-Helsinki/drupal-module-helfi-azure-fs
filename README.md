@@ -6,7 +6,7 @@ Provides file system fixes for Azure.
 
 ## Requirements
 
-- PHP 7.4 or higher
+- PHP 8.0 or higher
 
 ## Usage
 
