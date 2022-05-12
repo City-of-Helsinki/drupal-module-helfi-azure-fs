@@ -2,7 +2,9 @@
 
 ![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg)
 
-Provides file system fixes for Azure.
+Azure's NFS file mount doesn't support certain file operations (such as chmod), causing any request that performs them to give an 5xx error, like when trying to generate an image style.
+
+This module decorates core's `file_system` service to skip unsupported file operations when the site is operating on Azure environment.
 
 ## Requirements
 
@@ -10,35 +12,16 @@ Provides file system fixes for Azure.
 
 ## Usage
 
-Enable the module.
+Enable the module. 
 
-### Blob storage
+### Using Azure Blob storage to host all files (optional)
 
-Configure Flysystem:
-
+- Enable `flysystem_azure` module: `drush en flysystem_azure`
+- Populate required environment variables:
 ```
-$schemes = [
-  'azure' => [
-    'driver' => 'helfi_azure',
-    'config' => [
-      'name' => 'your-storage-account-name',
-      'key' => 'your-key',
-      'container' => 'your-container-name',
-      'endpointSuffix' => 'core.windows.net',
-      'protocol' => 'https',
-    ],
-    'cache' => TRUE,
-    // Enable these to serve js and css files from blob storage.
-    'serve_js' => TRUE,
-    'serve_css' => TRUE,
-  ],
-];
-$settings['flysystem'] = $schemes;
-
-// This overrides all field and image fields to use blob storage
-// by default.
-// @see helfi_azure_fs_entity_field_storage_info_alter().
-$config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
+AZURE_BLOB_STORAGE_CONTAINER: The container name
+AZURE_BLOB_STORAGE_KEY: The blob storage secret
+AZURE_BLOB_STORAGE_NAME: The blob storage name
 ```
 
 ## Contact
