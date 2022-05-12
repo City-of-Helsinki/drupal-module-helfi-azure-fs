@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg)
 
-Azure's NFS file mount doesn't support certain file operations (such as chmod), causing any request that performs them to give an 5xx error, like when trying to generate an image style.
+Azure's NFS file mount does not support certain file operations (such as chmod), causing any request that performs them to give a 5xx error, like when trying to generate an image style.
 
 This module decorates core's `file_system` service to skip unsupported file operations when the site is operating on Azure environment.
 
