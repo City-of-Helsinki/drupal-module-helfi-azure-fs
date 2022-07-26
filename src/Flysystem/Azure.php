@@ -31,8 +31,13 @@ final class Azure extends AzureBase {
     else {
       $values['AccountKey'] = $this->configuration['key'];
     }
+    $connectionString = '';
 
-    return http_build_query($values, arg_separator: ';');
+    foreach ($values as $key => $value) {
+      $connectionString .= sprintf('%s=%s;', $key, $value);
+    }
+
+    return $connectionString;
   }
 
 }
