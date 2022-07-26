@@ -25,7 +25,7 @@ final class Azure extends AzureBase {
       'EndpointSuffix' => $this->configuration['endpointSuffix'],
     ];
 
-    if (isset($this->configuration['token'])) {
+    if (!empty($this->configuration['token'])) {
       $values['SharedAccessSignature'] = $this->configuration['token'];
     }
     else {

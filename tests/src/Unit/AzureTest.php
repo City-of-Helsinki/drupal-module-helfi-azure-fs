@@ -15,6 +15,8 @@ use Drupal\Tests\UnitTestCase;
 class AzureTest extends UnitTestCase {
 
   /**
+   * Tests connection string.
+   *
    * @covers ::getConnectionString
    * @dataProvider connectionStringData
    */
@@ -45,22 +47,35 @@ class AzureTest extends UnitTestCase {
       [
         [
           'protocol' => 'https',
-          'name' => 'sastest',
+          'name' => 'test',
           'endpointSuffix' => 'core.windows.net',
           'token' => '321',
         ],
-        'DefaultEndpointsProtocol=https;AccountName=sastest;EndpointSuffix=core.windows.net;SharedAccessSignature=321',
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;SharedAccessSignature=321',
       ],
-      // Test with SAS token and account key.
+      // Make sure connection string prefers SAS token when both the key and
+      // token is set.
       [
         [
           'protocol' => 'https',
-          'name' => 'sastest',
+          'name' => 'test',
           'endpointSuffix' => 'core.windows.net',
           'key' => '123',
           'token' => '321',
         ],
-        'DefaultEndpointsProtocol=https;AccountName=sastest;EndpointSuffix=core.windows.net;SharedAccessSignature=321',
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;SharedAccessSignature=321',
+      ],
+      // Make sure connection string fallbacks to key connection when SAS
+      // token is empty.
+      [
+        [
+          'protocol' => 'https',
+          'name' => 'test',
+          'endpointSuffix' => 'core.windows.net',
+          'key' => '123',
+          'token' => '',
+        ],
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123',
       ],
     ];
   }
