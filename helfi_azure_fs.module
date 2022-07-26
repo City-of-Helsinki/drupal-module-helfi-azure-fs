@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types = 1);
-
 /**
  * @file
  * Contains helfi azure fs hook implementations.
  */
+
+declare(strict_types = 1);
 
 use Drupal\Core\Entity\EntityTypeInterface;
 
@@ -31,4 +31,3 @@ function helfi_azure_fs_entity_field_storage_info_alter(
     $field->setSetting('uri_scheme', $scheme);
   }
 }
-
