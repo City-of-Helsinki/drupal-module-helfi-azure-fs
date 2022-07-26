@@ -51,7 +51,7 @@ class AzureTest extends UnitTestCase {
           'endpointSuffix' => 'core.windows.net',
           'token' => '321',
         ],
-        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;SharedAccessSignature=321;',
+        'BlobEndpoint=https://test.blob.core.windows.net;SharedAccessSignature=321;',
       ],
       // Make sure connection string prefers SAS token when both the key and
       // token is set.
@@ -63,7 +63,7 @@ class AzureTest extends UnitTestCase {
           'key' => '123',
           'token' => '321',
         ],
-        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;SharedAccessSignature=321;',
+        'BlobEndpoint=https://test.blob.core.windows.net;SharedAccessSignature=321;',
       ],
       // Make sure connection string fallbacks to key connection when SAS
       // token is empty.
