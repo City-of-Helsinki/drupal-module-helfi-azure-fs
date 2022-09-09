@@ -2,8 +2,6 @@
 
 namespace Drupal\Tests\file\Functional;
 
-use Drupal\Tests\file\Functional\FileManagedTestBase;
-
 /**
  * Tests the file transliteration.
  *
@@ -34,6 +32,12 @@ class FileNameTransliterateTest extends FileManagedTestBase {
     $image->save();
 
     $this->assertEquals($fixedFileName, $image->getFilename());
+
+    $image2 = $this->createFile(NULL, $this->randomMachineName());
+    $image2->setFilename($brokenFileName);
+    $image2->save();
+
+    $this->assertEquals('my_test_filename_0.png', $image2->getFilename());
   }
 
 }
