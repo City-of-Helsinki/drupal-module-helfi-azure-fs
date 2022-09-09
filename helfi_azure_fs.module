@@ -9,7 +9,6 @@ declare(strict_types = 1);
 
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\file\Entity\File;
 use Drupal\file\FileInterface;
 
 /**
