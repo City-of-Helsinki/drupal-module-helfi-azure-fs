@@ -60,7 +60,7 @@ class FileNameTransliterateTest extends FileManagedTestBase {
   }
 
   /**
-   * Tests file size upload errors.
+   * Tests name transliteration.
    */
   public function testFileNameTransliteration() {
     $image_file = (array) current($this->imageFiles);
