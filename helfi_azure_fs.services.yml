@@ -3,4 +3,8 @@ services:
     class: Drupal\helfi_azure_fs\AzureFileSystem
     decorates: file_system
     decoration_priority: 5
-    arguments: [ '@azure_file_system.inner', '@stream_wrapper_manager', '@settings', '@logger.channel.file' ]
+    arguments:
+      - '@azure_file_system.inner'
+      - '@stream_wrapper_manager'
+      - '@settings'
+      - '@logger.channel.file'
