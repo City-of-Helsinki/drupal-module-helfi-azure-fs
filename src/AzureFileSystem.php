@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Drupal\helfi_azure_fs;
 
 use Drupal\Core\File\FileSystem;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
@@ -15,7 +16,7 @@ use Psr\Log\LoggerInterface;
  *
  * Azure's NFS doesn't support any "normal" file operations (chmod for
  * example), making any request that performs them to fail, like
- * generating an image style.
+ * when generating an image style.
  *
  * We check whether we're operating on Azure environment and
  * fallback to normal filesystem operations on any other environment.
@@ -23,23 +24,16 @@ use Psr\Log\LoggerInterface;
 final class AzureFileSystem extends FileSystem {
 
   /**
-   * The inner service.
-   *
-   * @var \Drupal\Core\File\FileSystem
-   */
-  protected FileSystem $decorated;
-
-  /**
-   * Whether we're operating on azure or not.
+   * Whether to skip FS operations or not.
    *
    * @var bool
    */
-  protected bool $isAzure = FALSE;
+  private bool $skipFsOperations;
 
   /**
    * Constructs a new instance.
    *
-   * @param \Drupal\Core\File\FileSystem $decorated
+   * @param \Drupal\Core\File\FileSystemInterface $decorated
    *   The inner service.
    * @param \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface $streamWrapperManager
    *   The stream wrapper manager.
@@ -49,46 +43,27 @@ final class AzureFileSystem extends FileSystem {
    *   The logger.
    */
   public function __construct(
-    FileSystem $decorated,
+    private FileSystemInterface $decorated,
     StreamWrapperManagerInterface $streamWrapperManager,
     Settings $settings,
-    LoggerInterface $logger
+    LoggerInterface $logger,
   ) {
-    $this->decorated = $decorated;
-    $this->setIsAzure((bool) getenv('AZURE_SQL_SSL_CA_PATH'));
+    $this->skipFsOperations = $settings::get('is_azure', FALSE);
+
+    // @todo Keep this backward compatible in case someone is not using
+    // the latest platform. Remove in 2.x release.
+    if (!$this->skipFsOperations) {
+      $this->skipFsOperations = (bool) getenv('OPENSHIFT_BUILD_NAMESPACE');
+    }
 
     parent::__construct($streamWrapperManager, $settings, $logger);
   }
 
   /**
-   * Sets whether we're on azure or not.
-   *
-   * @param bool $status
-   *   Whether we're on azure or not.
-   *
-   * @return $this
-   *   The self.
-   */
-  public function setIsAzure(bool $status) : self {
-    $this->isAzure = $status;
-    return $this;
-  }
-
-  /**
-   * Whether we're operating on Azure.
-   *
-   * @return bool
-   *   TRUE if we're on Azure environment.
-   */
-  public function isAzure() : bool {
-    return $this->isAzure;
-  }
-
-  /**
    * {@inheritdoc}
    */
-  public function chmod($uri, $mode = NULL) {
-    if (!$this->isAzure()) {
+  public function chmod($uri, $mode = NULL) : bool {
+    if (!$this->skipFsOperations) {
       return $this->decorated->chmod($uri, $mode);
     }
     return TRUE;
@@ -102,8 +77,8 @@ final class AzureFileSystem extends FileSystem {
     $mode = NULL,
     $recursive = FALSE,
     $context = NULL
-  ) {
-    if (!$this->isAzure()) {
+  ): bool {
+    if (!$this->skipFsOperations) {
       return $this->decorated->mkdir($uri, $mode, $recursive, $context);
     }
 
@@ -139,7 +114,10 @@ final class AzureFileSystem extends FileSystem {
         $recursive_path .= $component;
 
         if (!file_exists($recursive_path)) {
-          if (!$this->mkdirCall($recursive_path, 0777, FALSE, $context)) {
+          $success = $this->mkdirCall($recursive_path, $mode, FALSE, $context);
+          // If the operation failed, check again if the directory was created
+          // by another process/server, only report a failure if not.
+          if (!$success && !file_exists($recursive_path)) {
             return FALSE;
           }
         }

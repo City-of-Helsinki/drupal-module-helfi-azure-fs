@@ -12,7 +12,7 @@ This module decorates core's `file_system` service to skip unsupported file oper
 
 ## Usage
 
-Enable the module. 
+Enable the module.
 
 ### Using Azure Blob storage to host all files (optional)
 
@@ -23,6 +23,36 @@ AZURE_BLOB_STORAGE_CONTAINER: The container name
 AZURE_BLOB_STORAGE_KEY: The blob storage secret
 AZURE_BLOB_STORAGE_NAME: The blob storage name
 ```
+
+or if you're using SAS token authentication:
+
+```
+AZURE_BLOB_STORAGE_SAS_TOKEN: The SAS token
+AZURE_BLOB_STORAGE_NAME: The blob storage name
+```
+
+### Testing on local
+
+Add something like this to your `local.settings.php` file:
+
+```php
+$schemes = [
+  'azure' => [
+    'driver' => 'helfi_azure',
+    'config' => [
+      'name' => '[ insert account name here ]',
+      'token' => '[ insert sas token here ]',
+      'endpointSuffix' => 'core.windows.net',
+      'protocol' => 'https',
+    ],
+    'cache' => TRUE,
+  ],
+];
+$config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
+$settings['flysystem'] = $schemes;
+```
+
+The correct values can be found by running `printenv | grep AZURE_BLOB_STORAGE` inside a OpenShift Drupal pod.
 
 ## Contact
 
