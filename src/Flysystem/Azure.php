@@ -4,8 +4,11 @@ declare(strict_types = 1);
 
 namespace Drupal\helfi_azure_fs\Flysystem;
 
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\flysystem_azure\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\flysystem_azure\Flysystem\Azure as AzureBase;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Drupal plugin for the "Azure" Flysystem adapter.
@@ -17,10 +20,41 @@ use Drupal\flysystem_azure\Flysystem\Azure as AzureBase;
 final class Azure extends AzureBase {
 
   /**
+   * The file url generator service.
+   *
+   * @var \Drupal\Core\File\FileUrlGeneratorInterface
+   */
+  private FileUrlGeneratorInterface $fileUrlGenerator;
+
+  /**
    * {@inheritdoc}
    */
   public function getAdapter(): AzureBlobStorageAdapter {
     return new AzureBlobStorageAdapter($this->getClient(), $this->configuration['container']);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) : self {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->fileUrlGenerator = $container->get('file_url_generator');
+    return $instance;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getExternalUrl($uri): string {
+    // @todo explain why we do this.
+    if (str_contains($uri, 'styles/') && !file_exists($uri)) {
+      $uri = str_replace('azure://', 'public://', $uri);
+
+      return $this->fileUrlGenerator->generateString($uri);
+    }
+    $target = $this->getTarget($uri);
+
+    return sprintf('%s/%s', $this->calculateUrlPrefix(), UrlHelper::encodePath($target));
   }
 
   /**
