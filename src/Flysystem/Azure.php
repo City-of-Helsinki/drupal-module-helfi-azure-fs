@@ -50,6 +50,7 @@ final class Azure extends AzureBase {
     if (str_contains($uri, 'styles/') && !file_exists($uri)) {
       $uri = str_replace('azure://', 'public://', $uri);
 
+      // @todo Queue and invalidate cache tags using this file.
       return $this->fileUrlGenerator->generateString($uri);
     }
     $target = $this->getTarget($uri);
