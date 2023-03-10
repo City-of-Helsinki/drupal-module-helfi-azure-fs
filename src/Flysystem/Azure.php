@@ -46,11 +46,18 @@ final class Azure extends AzureBase {
    * {@inheritdoc}
    */
   public function getExternalUrl($uri): string {
-    // @todo explain why we do this.
+    // The original ::getExternalUrl method generates image styles on the fly,
+    // blocking the request until all derivatives on that page are generated.
+    // We use 'responsive_image' module, so each image can generate up to
+    // four derivatives, each taking several seconds.
+    // @see https://helsinkisolutionoffice.atlassian.net/browse/UHF-8204
     if (str_contains($uri, 'styles/') && !file_exists($uri)) {
+      // Return a 'local' image style URL until the image is generated and
+      // copied to Azure blob storage. This way we can decouple the generation
+      // from the request calling this method.
       $uri = str_replace('azure://', 'public://', $uri);
 
-      // @todo Queue and invalidate cache tags using this file.
+      // @todo invalidate cache tags using this file.
       return $this->fileUrlGenerator->generateString($uri);
     }
     $target = $this->getTarget($uri);
