@@ -53,8 +53,9 @@ final class Azure extends AzureBase {
     // @see https://helsinkisolutionoffice.atlassian.net/browse/UHF-8204
     if (str_contains($uri, 'styles/') && !file_exists($uri)) {
       // Return a 'local' image style URL until the image is generated and
-      // copied to Azure blob storage. This way we can decouple the generation
-      // from the request calling this method.
+      // copied to Azure blob storage. Each derivative is generated when the
+      // image style URL is called for the first time, allowing the generation
+      // to be decoupled from main request.
       $uri = str_replace('azure://', 'public://', $uri);
 
       // @todo invalidate cache tags using this file.
