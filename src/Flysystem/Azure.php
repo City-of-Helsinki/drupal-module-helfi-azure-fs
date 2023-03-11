@@ -58,7 +58,6 @@ final class Azure extends AzureBase {
       // to be decoupled from main request.
       $uri = str_replace('azure://', 'public://', $uri);
 
-      // @todo invalidate cache tags using this file.
       return $this->fileUrlGenerator->generateString($uri);
     }
     $target = $this->getTarget($uri);
