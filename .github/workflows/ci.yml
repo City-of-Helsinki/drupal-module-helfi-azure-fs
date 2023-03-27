@@ -3,12 +3,10 @@ on:
   push:
     branches:
       - main
-
 name: CI
 env:
   SIMPLETEST_DB: "mysql://drupal:drupal@db:3306/drupal"
   SIMPLETEST_BASE_URL: "http://127.0.0.1:8888"
-  DRUPAL_CORE_VERSION: 9.4.x
   SYMFONY_DEPRECATIONS_HELPER: disabled
   BROWSERTEST_OUTPUT_DIRECTORY: 'sites/simpletest'
 jobs:
@@ -16,13 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['8.0', '8.1']
+        php-versions: ['8.1']
     container:
       image: ghcr.io/city-of-helsinki/drupal-php-docker:${{ matrix.php-versions }}-alpine
 
     services:
       db:
-        image: mariadb:10.5
+        image: mariadb
         env:
           MYSQL_USER: drupal
           MYSQL_PASSWORD: drupal
@@ -36,51 +34,47 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Parse $MODULE_NAME from composer.json
+        run: echo "MODULE_NAME=$(cat composer.json | jq -r .name | awk -F/ '{print $NF}')" >> $GITHUB_ENV
+
       - name: Set Drupal root
         run: echo "DRUPAL_ROOT=$HOME/drupal" >> $GITHUB_ENV
 
       - name: Set module folder
-        run: echo "MODULE_FOLDER=$DRUPAL_ROOT/modules/contrib/${{ secrets.MODULE_NAME }}" >> $GITHUB_ENV
+        run: echo "MODULE_FOLDER=$DRUPAL_ROOT/public/modules/contrib/$MODULE_NAME" >> $GITHUB_ENV
 
-      - name: Clone drupal
-        run: git clone --depth 1 --branch "$DRUPAL_CORE_VERSION" http://git.drupal.org/project/drupal.git/ $DRUPAL_ROOT
+      - name: Clone platform
+        run: git clone https://github.com/City-of-Helsinki/drupal-helfi-platform.git $DRUPAL_ROOT
 
       - name: Install required composer dependencies
+        working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          cd $DRUPAL_ROOT
-          composer config platform.php ${{ matrix.php-versions }}
-          composer config repositories.4 composer https://repository.drupal.hel.ninja/
           composer config repositories.5 path $GITHUB_WORKSPACE
-          composer require drupal/${{ secrets.MODULE_NAME }} -W
-          composer run-script drupal-phpunit-upgrade
-          composer require "drush/drush ^10.0"
-          composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-          composer require --dev donatj/mock-webserver
-          composer require --dev "drupal/coder"
+          composer require drupal/$MODULE_NAME -W
 
       - name: Install Drupal
+        working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          cd $DRUPAL_ROOT
           php -d sendmail_path=$(which true); vendor/bin/drush --yes -v site-install minimal --db-url="$SIMPLETEST_DB"
-          vendor/bin/drush en ${{ secrets.MODULE_NAME }} -y
+          vendor/bin/drush en $MODULE_NAME -y
 
       - name: Run PHPCS
+        working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          cd $DRUPAL_ROOT
           vendor/bin/phpcs $MODULE_FOLDER --standard=Drupal --extensions=php,module,inc,install,test,info
 
       - name: Start services
+        working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          cd $DRUPAL_ROOT
           vendor/bin/drush runserver $SIMPLETEST_BASE_URL > /dev/null 2>&1 &
           chromedriver --port=4444 > /dev/null 2>&1 &
 
       - name: Run PHPUnit tests
+        working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          cd $DRUPAL_ROOT
           php -d pcov.directory=$MODULE_FOLDER \
             vendor/bin/phpunit \
-            --bootstrap $DRUPAL_ROOT/core/tests/bootstrap.php \
+            --bootstrap $DRUPAL_ROOT/public/core/tests/bootstrap.php \
             -c $MODULE_FOLDER/phpunit.xml \
             --coverage-clover=coverage.xml \
             $MODULE_FOLDER
