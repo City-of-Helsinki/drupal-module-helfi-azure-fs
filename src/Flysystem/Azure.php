@@ -8,6 +8,12 @@ use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\flysystem_azure\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\flysystem_azure\Flysystem\Azure as AzureBase;
+use MicrosoftAzure\Storage\Blob\BlobRestProxy;
+use MicrosoftAzure\Storage\Blob\Internal\BlobResources;
+use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
+use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
+use MicrosoftAzure\Storage\Common\Internal\Middlewares\CommonRequestMiddleware;
+use MicrosoftAzure\Storage\Common\Internal\Resources;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -29,17 +35,68 @@ final class Azure extends AzureBase {
   /**
    * {@inheritdoc}
    */
-  public function getAdapter(): AzureBlobStorageAdapter {
-    return new AzureBlobStorageAdapter($this->getClient(), $this->configuration['container']);
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) : self {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->fileUrlGenerator = $container->get('file_url_generator');
+    return $instance;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) : self {
-    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
-    $instance->fileUrlGenerator = $container->get('file_url_generator');
-    return $instance;
+  public function getAdapter(): AzureBlobStorageAdapter {
+    return new AzureBlobStorageAdapter($this->getClient(), $this->configuration['container']);
+  }
+
+  /**
+   * Gets the blob storage URI.
+   *
+   * @param string|null $suffix
+   *   The URI suffix.
+   *
+   * @return string
+   *   The blob storage uri.
+   */
+  private function getBlobUri(?string $suffix = NULL) : string {
+    return vsprintf('%s://%s%s.blob.%s', [
+      $this->configuration['protocol'],
+      $this->configuration['name'],
+      $suffix ?: '',
+      $this->configuration['endpointSuffix'],
+    ]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getClient(): BlobRestProxy {
+    if (!isset($this->client)) {
+      $wrapper = new BlobRestProxy(
+        $this->getBlobUri(),
+        $this->getBlobUri(Resources::SECONDARY_STRING),
+        ''
+      );
+
+      if (!empty($this->configuration['token'])) {
+        $authScheme = new SharedAccessSignatureAuthScheme(
+          $this->configuration['token']
+        );
+      }
+      else {
+        $authScheme = new SharedKeyAuthScheme(
+          $this->configuration['name'],
+          $this->configuration['key'],
+        );
+      }
+      $commonRequestMiddleware = new CommonRequestMiddleware(
+        $authScheme,
+        BlobResources::STORAGE_API_LATEST_VERSION,
+        BlobResources::BLOB_SDK_VERSION
+      );
+      $wrapper->pushMiddleware($commonRequestMiddleware);
+      $this->client = $wrapper;
+    }
+    return $this->client;
   }
 
   /**
@@ -63,38 +120,6 @@ final class Azure extends AzureBase {
     $target = $this->getTarget($uri);
 
     return sprintf('%s/%s', $this->calculateUrlPrefix(), UrlHelper::encodePath($target));
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getConnectionString(): string {
-
-    if (!empty($this->configuration['token'])) {
-      $values = [
-        'BlobEndpoint' => vsprintf('%s://%s.blob.%s', [
-          $this->configuration['protocol'],
-          $this->configuration['name'],
-          $this->configuration['endpointSuffix'],
-        ]),
-        'SharedAccessSignature' => $this->configuration['token'],
-      ];
-    }
-    else {
-      $values = [
-        'DefaultEndpointsProtocol' => $this->configuration['protocol'],
-        'AccountName' => $this->configuration['name'],
-        'EndpointSuffix' => $this->configuration['endpointSuffix'],
-        'AccountKey' => $this->configuration['key'],
-      ];
-    }
-    $connectionString = '';
-
-    foreach ($values as $key => $value) {
-      $connectionString .= sprintf('%s=%s;', $key, $value);
-    }
-
-    return $connectionString;
   }
 
 }
