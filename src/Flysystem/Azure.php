@@ -71,6 +71,9 @@ final class Azure extends AzureBase {
    */
   public function getClient(): BlobRestProxy {
     if (!isset($this->client)) {
+      // Construct the client manually to avoid calling substr with null
+      // $haystack parameter.
+      // @see https://github.com/Azure/azure-storage-php/issues/347
       $wrapper = new BlobRestProxy(
         $this->getBlobUri(),
         $this->getBlobUri(Resources::SECONDARY_STRING),
