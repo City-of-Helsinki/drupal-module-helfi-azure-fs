@@ -42,6 +42,7 @@ $schemes = [
     'config' => [
       'name' => '[ insert account name here ]',
       'token' => '[ insert sas token here ]',
+      'container' => '[ insert container name here ]',
       'endpointSuffix' => 'core.windows.net',
       'protocol' => 'https',
     ],
