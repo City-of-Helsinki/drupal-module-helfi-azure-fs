@@ -1,6 +1,6 @@
 # Drupal Azure FS
 
-![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg)
+![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg) [![codecov](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs/branch/main/graph/badge.svg?token=46YWS8J8NN)](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs)
 
 Azure's NFS file mount does not support certain file operations (such as chmod), causing any request that performs them to give a 5xx error, like when trying to generate an image style.
 
@@ -8,7 +8,7 @@ This module decorates core's `file_system` service to skip unsupported file oper
 
 ## Requirements
 
-- PHP 8.0 or higher
+- PHP 8.1 or higher
 
 ## Usage
 
