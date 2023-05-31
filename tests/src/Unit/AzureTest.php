@@ -4,10 +4,17 @@ declare(strict_types = 1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
+use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Core\File\FileUrlGeneratorInterface;
+use Drupal\Core\Logger\LoggerChannelFactory;
 use Drupal\helfi_azure_fs\Flysystem\Azure;
 use Drupal\Tests\UnitTestCase;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
+use org\bovigo\vfs\vfsStream;
+use Prophecy\Argument;
+use Prophecy\PhpUnit\ProphecyTrait;
+use Psr\Log\LoggerInterface;
 
 /**
  * @coversDefaultClass \Drupal\helfi_azure_fs\Flysystem\Azure
@@ -16,11 +23,47 @@ use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
  */
 class AzureTest extends UnitTestCase {
 
+  use ProphecyTrait;
+
+  /**
+   * @covers ::getExternalUrl
+   * @covers ::__construct
+   * @covers ::create
+   */
+  public function testGetExternalUrl() : void {
+    vfsStream::setup('flysystem');
+    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
+    $fileUrlGenerator->generateString(Argument::any())
+      ->shouldBeCalledTimes(1)
+      ->willReturn(
+        'https://localhost/styles/test.jpg',
+      );
+    $loggerFactory = new LoggerChannelFactory();
+    $loggerFactory->addLogger($this->prophesize(LoggerInterface::class)->reveal());
+
+    $configuration = [
+      'protocol' => 'https',
+      'name' => 'test',
+      'endpointSuffix' => 'core.windows.net',
+      'container' => 'test',
+    ];
+
+    $container = new ContainerBuilder();
+    $container->set('logger.factory', $loggerFactory);
+    $container->set('file_url_generator', $fileUrlGenerator->reveal());
+    $azure = Azure::create($container, $configuration, 'helfi_azure', []);
+    // Make sure non-image style URLs are served directly from blob storage.
+    $this->assertEquals('https://test.blob.core.windows.net/test/test.jpg', $azure->getExternalUrl('vfs://test.jpg'));
+    // Make sure image style URL is passed to file url generator service.
+    $this->assertEquals('https://localhost/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
+  }
+
   /**
    * Tests connection string.
    *
    * @covers ::getClient
    * @covers ::getBlobUri
+   * @covers ::__construct
    * @dataProvider connectionStringData
    */
   public function testGetClient(array $configuration, array $expected) : void {
