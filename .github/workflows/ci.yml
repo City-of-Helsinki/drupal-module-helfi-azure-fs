@@ -5,16 +5,14 @@ on:
       - main
 name: CI
 env:
-  SIMPLETEST_DB: "mysql://drupal:drupal@db:3306/drupal"
-  SIMPLETEST_BASE_URL: "http://127.0.0.1:8888"
   SYMFONY_DEPRECATIONS_HELPER: disabled
-  BROWSERTEST_OUTPUT_DIRECTORY: 'sites/simpletest'
+  BROWSERTEST_OUTPUT_DIRECTORY: 'public/sites/simpletest'
 jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['8.1']
+        php-versions: ['8.1', '8.2']
     container:
       image: ghcr.io/city-of-helsinki/drupal-php-docker:${{ matrix.php-versions }}-alpine
 
@@ -30,7 +28,7 @@ jobs:
           - 3306:3306
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
@@ -44,7 +42,7 @@ jobs:
         run: echo "MODULE_FOLDER=$DRUPAL_ROOT/public/modules/contrib/$MODULE_NAME" >> $GITHUB_ENV
 
       - name: Clone platform
-        run: git clone https://github.com/City-of-Helsinki/drupal-helfi-platform.git $DRUPAL_ROOT
+        run: git clone --depth=1 https://github.com/City-of-Helsinki/drupal-helfi-platform.git $DRUPAL_ROOT
 
       - name: Install required composer dependencies
         working-directory: ${{ env.DRUPAL_ROOT }}
@@ -72,16 +70,15 @@ jobs:
       - name: Run PHPUnit tests
         working-directory: ${{ env.DRUPAL_ROOT }}
         run: |
-          php -d pcov.directory=$MODULE_FOLDER \
-            vendor/bin/phpunit \
+          vendor/bin/phpunit \
             --bootstrap $DRUPAL_ROOT/public/core/tests/bootstrap.php \
             -c $MODULE_FOLDER/phpunit.xml \
-            --coverage-clover=coverage.xml \
+            --coverage-clover=$MODULE_FOLDER/coverage.xml \
             $MODULE_FOLDER
-          codecov
+          codecov --rootDir $MODULE_FOLDER
 
       - name: Create an artifact from test report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: results
