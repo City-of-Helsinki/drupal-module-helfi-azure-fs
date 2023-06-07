@@ -2,6 +2,8 @@
 
 ![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg) [![codecov](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs/branch/main/graph/badge.svg?token=46YWS8J8NN)](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs)
 
+Provides various fixes to deal with Azure's NFS mount and an integration to Azure's Blob storage service using [flysystem](https://www.drupal.org/project/flysystem) and [flysystem_azure](https://www.drupal.org/project/flysystem_azure) modules.
+
 Azure's NFS file mount does not support certain file operations (such as chmod), causing any request that performs them to give a 5xx error, like when trying to generate an image style.
 
 This module decorates core's `file_system` service to skip unsupported file operations when the site is operating on Azure environment.
