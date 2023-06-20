@@ -7,8 +7,8 @@
 
 declare(strict_types = 1);
 
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\FileInterface;
 
 /**
