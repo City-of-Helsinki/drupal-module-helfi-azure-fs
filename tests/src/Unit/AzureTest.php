@@ -34,7 +34,7 @@ class AzureTest extends UnitTestCase {
     vfsStream::setup('flysystem');
     $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
     $fileUrlGenerator->generateString(Argument::any())
-      ->shouldBeCalledTimes()
+      ->shouldBeCalledTimes(2)
       ->willReturn(
         '/styles/test.jpg',
         '/styles/test).jpg',
