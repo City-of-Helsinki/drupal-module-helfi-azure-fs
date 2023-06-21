@@ -58,6 +58,7 @@ class AzureTest extends UnitTestCase {
     $this->assertEquals('/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
 
     // Make sure url is encoded.
+    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
     $fileUrlGenerator->generateString(Argument::any())
       ->shouldBeCalledTimes(1)
       ->willReturn(
