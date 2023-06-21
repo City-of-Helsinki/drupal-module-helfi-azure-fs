@@ -33,6 +33,13 @@ final class Azure extends AzureBase {
   private FileUrlGeneratorInterface $fileUrlGenerator;
 
   /**
+   * List of urls already requested, indexed by uri.
+   *
+   * @var string[]
+   */
+  private array $externalUrls = [];
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) : self {
@@ -106,6 +113,11 @@ final class Azure extends AzureBase {
    * {@inheritdoc}
    */
   public function getExternalUrl($uri): string {
+    // This could get called multiple times in a request, currently 2 times,
+    // and the file_exists below takes time, so we use a 'static' cache.
+    if (isset($this->externalUrls[$uri])) {
+      return $this->externalUrls[$uri];
+    }
     // The original ::getExternalUrl method generates image styles on the fly,
     // blocking the request until all derivatives on that page are generated.
     // We use 'responsive_image' module, so each image can generate up to
@@ -116,13 +128,15 @@ final class Azure extends AzureBase {
       // copied to Azure blob storage. Each derivative is generated when the
       // image style URL is called for the first time, allowing the generation
       // to be decoupled from main request.
-      $uri = str_replace('azure://', 'public://', $uri);
+      $localUri = str_replace('azure://', 'public://', $uri);
 
-      return UrlHelper::encodePath($this->fileUrlGenerator->generateString($uri));
+      return $this->externalUrls[$uri] = UrlHelper::encodePath(
+        $this->fileUrlGenerator->generateString($localUri));
     }
     $target = $this->getTarget($uri);
 
-    return sprintf('%s/%s', $this->calculateUrlPrefix(), UrlHelper::encodePath($target));
+    return $this->externalUrls[$uri] = sprintf('%s/%s',
+      $this->calculateUrlPrefix(), UrlHelper::encodePath($target));
   }
 
 }

@@ -61,6 +61,10 @@ class AzureTest extends UnitTestCase {
     // Check that file uri is encoded.
     $this->assertEquals('https://test.blob.core.windows.net/test/test%29.jpg', $azure->getExternalUrl('vfs://test).jpg'));
     $this->assertEquals('/styles/test%29.jpg', $azure->getExternalUrl('vfs://styles/test).jpg'));
+
+    // Test static cache, as generateString should not be called 3rd time
+    // and is restricted above to 2 calls.
+    $this->assertEquals('/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
   }
 
   /**
