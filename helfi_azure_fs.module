@@ -7,8 +7,8 @@
 
 declare(strict_types = 1);
 
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\FileInterface;
 
 /**
@@ -38,7 +38,7 @@ function helfi_azure_fs_entity_field_storage_info_alter(
  * Implements hook_file_presave().
  */
 function helfi_azure_fs_file_presave(FileInterface $file) : void {
-  $new_filename = str_replace(' ', '_', $file->getFilename());
+  $new_filename = preg_replace('/[ +]/', '_', $file->getFilename());
 
   if ($new_filename !== $file->getFilename()) {
     /** @var \Drupal\Core\File\FileSystemInterface $file_system */
