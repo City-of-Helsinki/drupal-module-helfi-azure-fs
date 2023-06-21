@@ -36,6 +36,7 @@ class AzureTest extends UnitTestCase {
     $fileUrlGenerator->generateString(Argument::any())
       ->shouldBeCalledTimes(1)
       ->willReturn(
+        '/styles/test.jpg',
         '/styles/test).jpg',
       );
     $loggerFactory = new LoggerChannelFactory();
@@ -53,8 +54,12 @@ class AzureTest extends UnitTestCase {
     $container->set('file_url_generator', $fileUrlGenerator->reveal());
     $azure = Azure::create($container, $configuration, 'helfi_azure', []);
     // Make sure non-image style URLs are served directly from blob storage.
-    $this->assertEquals('https://test.blob.core.windows.net/test/test%29.jpg', $azure->getExternalUrl('vfs://test).jpg'));
+    $this->assertEquals('https://test.blob.core.windows.net/test/test.jpg', $azure->getExternalUrl('vfs://test.jpg'));
     // Make sure image style URL is passed to file url generator service and is encoded.
+    $this->assertEquals('/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
+
+    // Check that file uri is encoded.
+    $this->assertEquals('https://test.blob.core.windows.net/test/test%29.jpg', $azure->getExternalUrl('vfs://test).jpg'));
     $this->assertEquals('/styles/test%29.jpg', $azure->getExternalUrl('vfs://styles/test).jpg'));
   }
 
