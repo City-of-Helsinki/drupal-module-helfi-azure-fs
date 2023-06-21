@@ -131,8 +131,8 @@ final class Azure extends AzureBase {
       // to be decoupled from main request.
       $localUri = str_replace('azure://', 'public://', $uri);
 
-      return $this->externalUrls[$uri] = $this->fileUrlGenerator
-        ->generateString($localUri);
+      return $this->externalUrls[$uri] = UrlHelper::encodePath(
+        $this->fileUrlGenerator->generateString($localUri));
     }
     $target = $this->getTarget($uri);
 

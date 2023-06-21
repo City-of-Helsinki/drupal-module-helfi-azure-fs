@@ -25,8 +25,8 @@ class FileNameTransliterateTest extends FileManagedTestBase {
   public function testFileNameTransliteration() {
     $image = $this->createFile(NULL, $this->randomMachineName());
 
-    $brokenFileName = 'my test filename.png';
-    $fixedFileName = 'my_test_filename.png';
+    $brokenFileName = 'my test+filename+something else.png';
+    $fixedFileName = 'my_test_filename_something_else.png';
 
     $image->setFilename($brokenFileName);
     $image->save();
@@ -37,7 +37,8 @@ class FileNameTransliterateTest extends FileManagedTestBase {
     $image2->setFilename($brokenFileName);
     $image2->save();
 
-    $this->assertEquals('my_test_filename_0.png', $image2->getFilename());
+    $this->assertEquals('my_test_filename_something_else_0.png',
+      $image2->getFilename());
   }
 
 }
