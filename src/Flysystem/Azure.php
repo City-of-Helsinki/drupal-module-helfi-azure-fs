@@ -39,7 +39,6 @@ final class Azure extends AzureBase {
    */
   private array $externalUrls = [];
 
-
   /**
    * {@inheritdoc}
    */
