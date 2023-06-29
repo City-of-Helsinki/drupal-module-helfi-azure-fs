@@ -13,7 +13,7 @@
     },
     "extra": {
         "patches": {
-            "drupal/helfi_azure_fs": {
+            "drupal/flysystem_azure": {
                 "D10 patch": "https://www.drupal.org/files/issues/2022-06-15/flysystem_azure.1.0.x-dev.rector.patch"
             }
         }
