@@ -5,17 +5,11 @@
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/flysystem_azure": "1.0.x-dev"
+        "drupal/flysystem": "^2.1@RC",
+        "microsoft/azure-storage-blob": "^1.1"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
         "drupal/coder": "^8.3"
-    },
-    "extra": {
-        "patches": {
-            "drupal/flysystem_azure": {
-                "D10 patch": "https://www.drupal.org/files/issues/2022-06-15/flysystem_azure.1.0.x-dev.rector.patch"
-            }
-        }
     }
 }
