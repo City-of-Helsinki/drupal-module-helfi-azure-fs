@@ -53,6 +53,7 @@ $schemes = [
 ];
 $config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
 $settings['flysystem'] = $schemes;
+$settings['is_azure'] = TRUE;
 ```
 
 The correct values can be found by running `printenv | grep AZURE_BLOB_STORAGE` inside a OpenShift Drupal pod.
