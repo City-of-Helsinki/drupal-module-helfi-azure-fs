@@ -2,15 +2,18 @@
 
 /**
  * @file
- * AzureBlobStorageAdapter.php from league/flysystem-azure-blob-storage:1.0.0
- * with small changes to make the dependencies play nicely with Drupal 10.
+ * AzureBlobStorageAdapter.php from league/flysystem-azure-blob-storage:1.0.0.
+ * Modified to make this play nicely with Drupal 10 dependencies.
  *
  * @license MIT
  * @license https://github.com/thephpleague/flysystem-azure-blob-storage/blob/1.0.0/LICENSE
  */
 
+// phpcs:ignoreFile
+
 namespace Drupal\helfi_azure_fs;
 
+use GuzzleHttp\Psr7\Utils as GuzzleUtil;
 use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use League\Flysystem\Config;
@@ -22,7 +25,6 @@ use MicrosoftAzure\Storage\Blob\Models\CreateBlockBlobOptions;
 use MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions;
 use MicrosoftAzure\Storage\Common\Exceptions\ServiceException;
 use MicrosoftAzure\Storage\Common\Models\ContinuationToken;
-use GuzzleHttp\Psr7\Utils as GuzzleUtil;
 
 use function array_merge;
 use function compact;

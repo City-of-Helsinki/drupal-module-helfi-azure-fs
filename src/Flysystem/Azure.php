@@ -5,11 +5,11 @@ declare(strict_types = 1);
 namespace Drupal\helfi_azure_fs\Flysystem;
 
 use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
-use Drupal\Core\File\FileUrlGeneratorInterface;
-use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
+use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use MicrosoftAzure\Storage\Blob\Internal\BlobResources;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
