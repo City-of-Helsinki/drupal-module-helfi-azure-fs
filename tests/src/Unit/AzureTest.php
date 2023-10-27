@@ -76,7 +76,9 @@ class AzureTest extends UnitTestCase {
    * @dataProvider connectionStringData
    */
   public function testGetClient(array $configuration, array $expected) : void {
-    $azure = new Azure($configuration);
+    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
+    $logger = $this->prophesize(LoggerInterface::class);
+    $azure = new Azure($configuration, $logger->reveal(), $fileUrlGenerator->reveal());
     $client = $azure->getClient();
     $this->assertEquals($expected['primaryUri'], (string) $client->getPsrPrimaryUri());
     $this->assertEquals($expected['secondaryUri'], (string) $client->getPsrSecondaryUri());
