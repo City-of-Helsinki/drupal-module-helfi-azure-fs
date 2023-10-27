@@ -40,32 +40,11 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
   protected bool $isPublic = TRUE;
 
   /**
-   * Plugin configuration.
-   *
-   * @var array
-   */
-  protected array $configuration;
-
-  /**
    * The Client proxy.
    *
    * @var \MicrosoftAzure\Storage\Blob\BlobRestProxy
    */
   protected BlobRestProxy $client;
-
-  /**
-   * The logger.
-   *
-   * @var \Psr\Log\LoggerInterface
-   */
-  protected LoggerInterface $logger;
-
-  /**
-   * The file url generator service.
-   *
-   * @var \Drupal\Core\File\FileUrlGeneratorInterface
-   */
-  private FileUrlGeneratorInterface $fileUrlGenerator;
 
   /**
    * List of urls already requested, indexed by uri.
@@ -79,19 +58,27 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    *
    * @param array $configuration
    *   Plugin configuration array.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger.
+   * @param \Drupal\Core\File\FileUrlGeneratorInterface $fileUrlGenerator
+   *   The file url generator service.
    */
-  public function __construct(array $configuration) {
-    $this->configuration = $configuration;
+  public function __construct(
+    private array $configuration,
+    private LoggerInterface $logger,
+    private FileUrlGeneratorInterface $fileUrlGenerator
+  ) {
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): self {
-    $instance = new static($configuration);
-    $instance->logger = $container->get('logger.factory')->get('flysystem_azure');
-    $instance->fileUrlGenerator = $container->get('file_url_generator');
-    return $instance;
+    return new static(
+      $configuration,
+      $container->get('logger.factory')->get('flysystem_azure'),
+      $container->get('file_url_generator')
+    );
   }
 
   /**
