@@ -33,13 +33,6 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
   }
 
   /**
-   * Is public.
-   *
-   * @var bool
-   */
-  protected bool $isPublic = TRUE;
-
-  /**
    * The Client proxy.
    *
    * @var \MicrosoftAzure\Storage\Blob\BlobRestProxy
