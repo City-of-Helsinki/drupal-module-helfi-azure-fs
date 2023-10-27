@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg) [![codecov](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs/branch/main/graph/badge.svg?token=46YWS8J8NN)](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs)
 
-Provides various fixes to deal with Azure's NFS mount and an integration to Azure's Blob storage service using [flysystem](https://www.drupal.org/project/flysystem) and [flysystem_azure](https://www.drupal.org/project/flysystem_azure) modules.
+Provides various fixes to deal with Azure's NFS mount and an integration to Azure's Blob storage service using [flysystem](https://www.drupal.org/project/flysystem).
 
 Azure's NFS file mount does not support certain file operations (such as chmod), causing any request that performs them to give a 5xx error, like when trying to generate an image style.
 
@@ -18,18 +18,17 @@ Enable the module.
 
 ### Using Azure Blob storage to host all files (optional)
 
-- Enable `flysystem_azure` module: `drush en flysystem_azure`
 - Populate required environment variables:
 ```
 AZURE_BLOB_STORAGE_CONTAINER: The container name
-AZURE_BLOB_STORAGE_KEY: The blob storage secret
 AZURE_BLOB_STORAGE_NAME: The blob storage name
+BLOBSTORAGE_ACCOUNT_KEY: The blob storage secret
 ```
 
 or if you're using SAS token authentication:
 
 ```
-AZURE_BLOB_STORAGE_SAS_TOKEN: The SAS token
+BLOBSTORAGE_SAS_TOKEN: The SAS token
 AZURE_BLOB_STORAGE_NAME: The blob storage name
 ```
 
@@ -56,7 +55,7 @@ $settings['flysystem'] = $schemes;
 $settings['is_azure'] = TRUE;
 ```
 
-The correct values can be found by running `printenv | grep AZURE_BLOB_STORAGE` inside a OpenShift Drupal pod.
+The correct values can be found by running `printenv | grep BLOB` inside a OpenShift Drupal pod.
 
 ## Contact
 
