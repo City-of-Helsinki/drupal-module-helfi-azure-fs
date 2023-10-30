@@ -6,14 +6,17 @@ namespace Drupal\helfi_azure_fs\Flysystem;
 
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\File\FileUrlGeneratorInterface;
-use Drupal\flysystem_azure\Flysystem\Adapter\AzureBlobStorageAdapter;
-use Drupal\flysystem_azure\Flysystem\Azure as AzureBase;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\flysystem\Plugin\FlysystemPluginInterface;
+use Drupal\flysystem\Plugin\FlysystemUrlTrait;
+use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use MicrosoftAzure\Storage\Blob\Internal\BlobResources;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
 use MicrosoftAzure\Storage\Common\Internal\Middlewares\CommonRequestMiddleware;
 use MicrosoftAzure\Storage\Common\Internal\Resources;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -23,14 +26,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @Adapter(id = "helfi_azure")
  */
-final class Azure extends AzureBase {
+final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
+
+  use FlysystemUrlTrait {
+    getExternalUrl as getDownloadUrl;
+  }
 
   /**
-   * The file url generator service.
+   * The Client proxy.
    *
-   * @var \Drupal\Core\File\FileUrlGeneratorInterface
+   * @var \MicrosoftAzure\Storage\Blob\BlobRestProxy
    */
-  private FileUrlGeneratorInterface $fileUrlGenerator;
+  protected BlobRestProxy $client;
 
   /**
    * List of urls already requested, indexed by uri.
@@ -40,12 +47,31 @@ final class Azure extends AzureBase {
   private array $externalUrls = [];
 
   /**
+   * Constructs an Azure object.
+   *
+   * @param array $configuration
+   *   Plugin configuration array.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger.
+   * @param \Drupal\Core\File\FileUrlGeneratorInterface $fileUrlGenerator
+   *   The file url generator service.
+   */
+  public function __construct(
+    private array $configuration,
+    private LoggerInterface $logger,
+    private FileUrlGeneratorInterface $fileUrlGenerator
+  ) {
+  }
+
+  /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) : self {
-    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
-    $instance->fileUrlGenerator = $container->get('file_url_generator');
-    return $instance;
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): self {
+    return new static(
+      $configuration,
+      $container->get('logger.factory')->get('flysystem_azure'),
+      $container->get('file_url_generator')
+    );
   }
 
   /**
@@ -137,6 +163,32 @@ final class Azure extends AzureBase {
 
     return $this->externalUrls[$uri] = sprintf('%s/%s',
       $this->calculateUrlPrefix(), UrlHelper::encodePath($target));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function ensure($force = FALSE): array {
+    try {
+      $this->getAdapter()->listContents();
+    }
+    catch (\Exception $e) {
+      $this->logger->error($e->getMessage());
+    }
+
+    return [];
+  }
+
+  /**
+   * Calculates the URL prefix.
+   *
+   * @return string
+   *   The URL prefix in the form
+   *   protocol://[name].blob.[endpointSuffix]/[container].
+   */
+  protected function calculateUrlPrefix(): string {
+    return $this->configuration['protocol'] . '://' . $this->configuration['name'] . '.blob.' .
+      $this->configuration['endpointSuffix'] . '/' . $this->configuration['container'];
   }
 
 }
