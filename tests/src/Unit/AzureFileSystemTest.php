@@ -55,11 +55,6 @@ class AzureFileSystemTest extends UnitTestCase {
 
     $fs = $this->getSut($decorated, new Settings(['is_azure' => TRUE]));
     $this->assertTrue($fs->chmod($uri));
-
-    // Test backward compatibility settings.
-    putenv('OPENSHIFT_BUILD_NAMESPACE=123');
-    $fs = $this->getSut($decorated, new Settings([]));
-    $this->assertTrue($fs->chmod($uri));
   }
 
   /**
@@ -70,8 +65,6 @@ class AzureFileSystemTest extends UnitTestCase {
     vfsStream::setup('dir');
     vfsStream::create($structure);
 
-    // Make sure BC setting is not set.
-    putenv('OPENSHIFT_BUILD_NAMESPACE=');
     // Make sure decorated service is called when 'skipFsOperations'
     // is disabled.
     $decorated = $this->prophesize(FileSystemInterface::class);

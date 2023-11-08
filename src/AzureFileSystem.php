@@ -50,12 +50,6 @@ final class AzureFileSystem extends FileSystem {
   ) {
     $this->skipFsOperations = $settings::get('is_azure', FALSE);
 
-    // @todo Keep this backward compatible in case someone is not using
-    // the latest platform. Remove in 2.x release.
-    if (!$this->skipFsOperations) {
-      $this->skipFsOperations = (bool) getenv('OPENSHIFT_BUILD_NAMESPACE');
-    }
-
     parent::__construct($streamWrapperManager, $settings, $logger);
   }
 
