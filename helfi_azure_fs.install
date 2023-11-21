@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Contains helfi azure fs install hook implementations.
+ */
+
+declare(strict_types = 1);
+
+/**
+ * Uninstall flysystem_azure module.
+ */
+function helfi_azure_fs_update_90201() {
+  \Drupal::service('module_installer')->uninstall([
+    'flysystem_azure',
+  ]);
+}
