@@ -14,7 +14,7 @@ class AzureBlobStorageAdapter extends AzureBlobStorageAdapterBase {
   /**
    * {@inheritdoc}
    */
-  public function getMetadata($path) {
+  public function getMetadata($path): bool|array {
     $metadata = parent::getMetadata($path);
 
     if ($metadata === FALSE && in_array($path, ['css', 'js'])) {
