@@ -15,8 +15,6 @@ use Prophecy\Prophecy\ObjectProphecy;
 use Psr\Log\LoggerInterface;
 
 /**
- * @coversDefaultClass \Drupal\helfi_azure_fs\AzureFileSystem
- *
  * @group helfi_azure_fs
  */
 class AzureFileSystemTest extends UnitTestCase {
@@ -42,7 +40,6 @@ class AzureFileSystemTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::chmod
    * @dataProvider chmodFolderData
    */
   public function testChmodSkipFsOperations(array $structure, string $uri) : void {
@@ -58,7 +55,6 @@ class AzureFileSystemTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::chmod
    * @dataProvider chmodFolderData
    */
   public function testSkipOperationsFallback(array $structure, string $uri) : void {
