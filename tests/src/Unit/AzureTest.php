@@ -17,6 +17,8 @@ use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\Log\LoggerInterface;
 
 /**
+ * Tests Azure.
+ *
  * @group helfi_azure_fs
  */
 class AzureTest extends UnitTestCase {
