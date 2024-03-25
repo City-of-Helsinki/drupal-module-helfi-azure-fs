@@ -43,5 +43,11 @@
     <directory suffix=".php">./src</directory>
     <file>./*.module</file>
   </include>
+  <exclude>
+    <!-- This is forked from 'league/flysystem-azure-blob-storage:1.0.0' and the test requires
+      a Blob storage account.
+      -->
+    <file>./src/AzureBlobStorageAdapter.php</file>
+  </exclude>
 </coverage>
 </phpunit>
