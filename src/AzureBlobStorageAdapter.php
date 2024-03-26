@@ -294,19 +294,10 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
     $path = $this->applyPathPrefix($path);
 
     try {
-      $metadata = $this->normalizeBlobProperties(
+      return $this->normalizeBlobProperties(
         $path,
         $this->client->getBlobProperties($this->container, $path)->getProperties()
       );
-
-      if ($metadata === FALSE && in_array($path, ['css', 'js'])) {
-        return [
-          'type' => 'dir',
-          'path' => $path,
-        ];
-      }
-
-      return $metadata;
     }
     catch (ServiceException $exception) {
       if ($exception->getCode() !== 404) {
