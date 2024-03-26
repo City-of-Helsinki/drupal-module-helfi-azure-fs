@@ -1,13 +1,12 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs;
 
 use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
-use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -78,7 +77,7 @@ final class AzureFileSystem extends FileSystem {
 
     // If the URI has a scheme, don't override the umask - schemes can handle
     // this issue in their own implementation.
-    if (StreamWrapperManager::getScheme($uri)) {
+    if ($this->streamWrapperManager::getScheme($uri)) {
       return $this->mkdirCall($uri, 0777, $recursive, $context);
     }
 
@@ -108,7 +107,7 @@ final class AzureFileSystem extends FileSystem {
         $recursive_path .= $component;
 
         if (!file_exists($recursive_path)) {
-          $success = $this->mkdirCall($recursive_path, $mode, FALSE, $context);
+          $success = $this->mkdirCall($recursive_path, 0777, FALSE, $context);
           // If the operation failed, check again if the directory was created
           // by another process/server, only report a failure if not.
           if (!$success && !file_exists($recursive_path)) {

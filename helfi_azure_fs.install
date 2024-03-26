@@ -5,7 +5,7 @@
  * Contains helfi azure fs install hook implementations.
  */
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 /**
  * Uninstall flysystem_azure module.

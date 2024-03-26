@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
@@ -17,7 +17,7 @@ use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\Log\LoggerInterface;
 
 /**
- * @coversDefaultClass \Drupal\helfi_azure_fs\Flysystem\Azure
+ * Tests Azure.
  *
  * @group helfi_azure_fs
  */
@@ -26,9 +26,7 @@ class AzureTest extends UnitTestCase {
   use ProphecyTrait;
 
   /**
-   * @covers ::getExternalUrl
-   * @covers ::__construct
-   * @covers ::create
+   * Tests getExternalUrl.
    */
   public function testGetExternalUrl() : void {
     vfsStream::setup('flysystem');
@@ -70,9 +68,6 @@ class AzureTest extends UnitTestCase {
   /**
    * Tests connection string.
    *
-   * @covers ::getClient
-   * @covers ::getBlobUri
-   * @covers ::__construct
    * @dataProvider connectionStringData
    */
   public function testGetClient(array $configuration, array $expected) : void {
