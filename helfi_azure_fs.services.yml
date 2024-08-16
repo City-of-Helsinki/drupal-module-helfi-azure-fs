@@ -8,3 +8,4 @@ services:
       - '@stream_wrapper_manager'
       - '@settings'
       - '@logger.channel.file'
+
