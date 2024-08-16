@@ -69,7 +69,7 @@ final class AzureFileSystem extends FileSystem {
     $uri,
     $mode = NULL,
     $recursive = FALSE,
-    $context = NULL
+    $context = NULL,
   ): bool {
     if (!$this->skipFsOperations) {
       return $this->decorated->mkdir($uri, $mode, $recursive, $context);
