@@ -10,6 +10,5 @@ services:
       - '@azure_file_system.inner'
       - '@stream_wrapper_manager'
       - '@settings'
-      - '@logger.channel.file'
 
   Drupal\helfi_azure_fs\Routing\RouteSubscriber: ~

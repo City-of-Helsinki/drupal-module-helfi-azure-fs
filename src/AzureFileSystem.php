@@ -38,18 +38,15 @@ final class AzureFileSystem extends FileSystem {
    *   The stream wrapper manager.
    * @param \Drupal\Core\Site\Settings $settings
    *   The settings.
-   * @param \Psr\Log\LoggerInterface $logger
-   *   The logger.
    */
   public function __construct(
     private FileSystemInterface $decorated,
     StreamWrapperManagerInterface $streamWrapperManager,
     Settings $settings,
-    LoggerInterface $logger,
   ) {
     $this->skipFsOperations = $settings::get('is_azure', FALSE);
 
-    parent::__construct($streamWrapperManager, $settings, $logger);
+    parent::__construct($streamWrapperManager, $settings);
   }
 
   /**

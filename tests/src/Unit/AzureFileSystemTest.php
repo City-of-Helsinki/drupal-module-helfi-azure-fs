@@ -95,9 +95,7 @@ class AzureFileSystemTest extends UnitTestCase {
     if (!$streamWrapperManager) {
       $streamWrapperManager = $this->createMock(StreamWrapperManagerInterface::class);
     }
-    $logger = $this->createMock(LoggerInterface::class);
-
-    return new AzureFileSystem($decorated, $streamWrapperManager, $settings, $logger);
+    return new AzureFileSystem($decorated, $streamWrapperManager, $settings);
   }
 
   /**
