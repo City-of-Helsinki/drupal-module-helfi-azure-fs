@@ -16,7 +16,7 @@ use Drupal\file\FileInterface;
  */
 function helfi_azure_fs_entity_field_storage_info_alter(
   &$fields,
-  EntityTypeInterface $entity_type
+  EntityTypeInterface $entity_type,
 ) : void {
   $config = Drupal::config('helfi_azure_fs.settings');
 
