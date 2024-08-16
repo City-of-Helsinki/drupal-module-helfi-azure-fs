@@ -12,6 +12,9 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
         "drupal/coder": "^8.3"
     },
+    "conflict": {
+        "drupal/core": "<10.3"
+    },
     "extra": {
         "patches": {
             "twistor/flysystem-stream-wrapper": {
