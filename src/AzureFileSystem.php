@@ -8,7 +8,6 @@ use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Provides Azure specific file system.
