@@ -14,7 +14,6 @@ use Drupal\Tests\UnitTestCase;
 use org\bovigo\vfs\vfsStream;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
-use Psr\Log\LoggerInterface;
 
 /**
  * Tests AzureFileSystem.
