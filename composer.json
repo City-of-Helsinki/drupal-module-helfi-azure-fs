@@ -17,7 +17,7 @@
     },
     "extra": {
         "patches": {
-            "drual/core": {
+            "drupal/core": {
                 "UHF-10533 D10.3 images": "https://raw.githubusercontent.com/City-of-Helsinki/drupal-module-helfi-azure-fs/f933226cdd9b046d76757d4f885d3d3567365264/patches/UHF-10533-d10-images.patch"
             },
             "twistor/flysystem-stream-wrapper": {
