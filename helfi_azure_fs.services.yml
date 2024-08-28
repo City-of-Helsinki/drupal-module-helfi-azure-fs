@@ -1,4 +1,8 @@
 services:
+  _defaults:
+    autoconfigure: true
+    autowire: true
+
   azure_file_system:
     class: Drupal\helfi_azure_fs\AzureFileSystem
     decorates: file_system
@@ -7,5 +11,4 @@ services:
       - '@azure_file_system.inner'
       - '@stream_wrapper_manager'
       - '@settings'
-      - '@logger.channel.file'
 
