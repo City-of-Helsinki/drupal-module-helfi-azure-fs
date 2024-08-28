@@ -59,7 +59,7 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
   public function __construct(
     private array $configuration,
     private LoggerInterface $logger,
-    private FileUrlGeneratorInterface $fileUrlGenerator,
+    private FileUrlGeneratorInterface $fileUrlGenerator
   ) {
   }
 

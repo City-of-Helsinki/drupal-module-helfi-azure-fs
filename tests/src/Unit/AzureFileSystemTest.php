@@ -14,6 +14,7 @@ use Drupal\Tests\UnitTestCase;
 use org\bovigo\vfs\vfsStream;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
+use Psr\Log\LoggerInterface;
 
 /**
  * Tests AzureFileSystem.
@@ -94,7 +95,9 @@ class AzureFileSystemTest extends UnitTestCase {
     if (!$streamWrapperManager) {
       $streamWrapperManager = $this->createMock(StreamWrapperManagerInterface::class);
     }
-    return new AzureFileSystem($decorated, $streamWrapperManager, $settings);
+    $logger = $this->createMock(LoggerInterface::class);
+
+    return new AzureFileSystem($decorated, $streamWrapperManager, $settings, $logger);
   }
 
   /**

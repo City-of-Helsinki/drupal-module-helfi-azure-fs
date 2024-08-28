@@ -8,6 +8,7 @@ use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Provides Azure specific file system.
@@ -37,15 +38,18 @@ final class AzureFileSystem extends FileSystem {
    *   The stream wrapper manager.
    * @param \Drupal\Core\Site\Settings $settings
    *   The settings.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger.
    */
   public function __construct(
     private FileSystemInterface $decorated,
     StreamWrapperManagerInterface $streamWrapperManager,
     Settings $settings,
+    LoggerInterface $logger,
   ) {
     $this->skipFsOperations = $settings::get('is_azure', FALSE);
 
-    parent::__construct($streamWrapperManager, $settings);
+    parent::__construct($streamWrapperManager, $settings, $logger);
   }
 
   /**
@@ -65,7 +69,7 @@ final class AzureFileSystem extends FileSystem {
     $uri,
     $mode = NULL,
     $recursive = FALSE,
-    $context = NULL,
+    $context = NULL
   ): bool {
     if (!$this->skipFsOperations) {
       return $this->decorated->mkdir($uri, $mode, $recursive, $context);

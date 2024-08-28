@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\FileInterface;
 
 /**
@@ -15,7 +16,7 @@ use Drupal\file\FileInterface;
  */
 function helfi_azure_fs_entity_field_storage_info_alter(
   &$fields,
-  EntityTypeInterface $entity_type,
+  EntityTypeInterface $entity_type
 ) : void {
   $config = Drupal::config('helfi_azure_fs.settings');
 
@@ -45,7 +46,7 @@ function helfi_azure_fs_file_presave(FileInterface $file) : void {
     $uri = $file->getFileUri();
     $directory = $file_system->dirname($uri);
     $uri = $directory . '/' . $new_filename;
-    if ($new_uri = $file_system->move($file->getFileUri(), $uri)) {
+    if ($new_uri = $file_system->move($file->getFileUri(), $uri, FileSystemInterface::EXISTS_RENAME)) {
       $file->set('uri', $new_uri);
       $file->set('filename', $file_system->basename($new_uri));
     }

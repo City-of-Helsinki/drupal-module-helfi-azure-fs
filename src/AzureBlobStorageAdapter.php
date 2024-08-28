@@ -65,7 +65,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
   public function __construct(
     protected BlobRestProxy $client,
     protected string $container,
-    ?string $prefix = NULL,
+    ?string $prefix = NULL
   ) {
     $this->setPathPrefix($prefix);
   }
