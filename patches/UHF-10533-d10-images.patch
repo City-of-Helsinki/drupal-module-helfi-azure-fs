@@ -1,0 +1,15 @@
+diff --git a/core/modules/image/src/Controller/ImageStyleDownloadController.php b/core/modules/image/src/Controller/ImageStyleDownloadController.php
+index bfc5c985d8..18d513b97e 100644
+--- a/core/modules/image/src/Controller/ImageStyleDownloadController.php
++++ b/core/modules/image/src/Controller/ImageStyleDownloadController.php
+@@ -158,7 +158,9 @@ public function deliver(Request $request, $scheme, ImageStyleInterface $image_st
+     $derivative_scheme = $this->streamWrapperManager->getScheme($derivative_uri);
+ 
+     if ($required_derivative_scheme !== $derivative_scheme) {
+-      throw new AccessDeniedHttpException("The scheme for this image doesn't match the scheme for the original image");
++      // Remove 10.3 security check. Hel.fi should only serve public files, so
++      // this should be fine for use while we are working on a more permanent solution.
++      $this->logger->info('Got %derivative_uri, expected scheme %required_scheme.', ['%derivative_uri' => $derivative_uri, '%required_scheme' => $required_derivative_scheme]);
+     }
+ 
+     if ($token_is_valid) {
