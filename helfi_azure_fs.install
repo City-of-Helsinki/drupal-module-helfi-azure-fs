@@ -8,10 +8,42 @@
 declare(strict_types=1);
 
 /**
+ * Implements hook_install().
+ */
+function helfi_azure_fs_install($is_syncing) : void {
+  if ($is_syncing) {
+    return;
+  }
+
+  if (!Drupal::moduleHandler()->moduleExists('file')) {
+    \Drupal::service('module_installer')->install([
+      'file',
+    ]);
+  }
+  \Drupal::configFactory()->getEditable('file.settings')
+    ->set('filename_sanitization', [
+      'transliterate' => TRUE,
+      'replace_whitespace' => TRUE,
+      'replace_non_alphanumeric' => TRUE,
+      'deduplicate_separators' => TRUE,
+      'lowercase' => TRUE,
+      'replacement_character' => '_',
+    ])
+    ->save();
+}
+
+/**
  * Uninstall flysystem_azure module.
  */
-function helfi_azure_fs_update_90201() {
+function helfi_azure_fs_update_90201() : void {
   \Drupal::service('module_installer')->uninstall([
     'flysystem_azure',
   ]);
+}
+
+/**
+ * Make sure file sanitize settings are enabled.
+ */
+function helfi_azure_fs_update_90202() : void {
+  helfi_azure_fs_install(FALSE);
 }

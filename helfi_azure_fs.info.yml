@@ -2,3 +2,5 @@ name: HELfi azure file system
 type: module
 package: Custom
 core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal:file
