@@ -8,15 +8,15 @@ use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Logger\LoggerChannelFactory;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\helfi_azure_fs\Flysystem\Azure;
 use Drupal\Tests\UnitTestCase;
+use Drupal\helfi_azure_fs\Flysystem\Azure;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
 use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
-use org\bovigo\vfs\vfsStream;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use org\bovigo\vfs\vfsStream;
 
 /**
  * Tests Azure.

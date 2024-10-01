@@ -9,11 +9,11 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
-use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\Tests\UnitTestCase;
-use org\bovigo\vfs\vfsStream;
+use Drupal\helfi_azure_fs\AzureFileSystem;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
+use org\bovigo\vfs\vfsStream;
 
 /**
  * Tests AzureFileSystem.
