@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
 use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 
 /**
  * Tests that file field's uri_scheme can be altered.

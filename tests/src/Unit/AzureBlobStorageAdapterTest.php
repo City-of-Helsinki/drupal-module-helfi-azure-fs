@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
-use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\Tests\UnitTestCase;
+use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use GuzzleHttp\Psr7\Response;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use MicrosoftAzure\Storage\Blob\Models\GetBlobPropertiesResult;
