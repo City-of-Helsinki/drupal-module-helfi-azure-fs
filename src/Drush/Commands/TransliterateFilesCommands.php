@@ -14,6 +14,7 @@ use Drupal\file\FileInterface;
 use Drush\Attributes\Command;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -38,6 +39,8 @@ final class TransliterateFilesCommands extends DrushCommands {
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly FileSystemInterface $fileSystem,
   ) {
+    $this->io = new SymfonyStyle($this->input(), $this->output());
+
     parent::__construct();
   }
 
@@ -82,7 +85,7 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       if (!file_exists($file->getFileUri())) {
-        $this->io()->warning("File {$file->getFileUri()} does not exist on disk. Skipping ...");
+        $this->io->warning("File {$file->getFileUri()} does not exist on disk. Skipping ...");
 
         continue;
       }
@@ -93,7 +96,7 @@ final class TransliterateFilesCommands extends DrushCommands {
         $this->fileSystem->move($file->getFileUri(), $sanitizedUri);
       }
       catch (FileException $e) {
-        $this->io()->error($e->getMessage());
+        $this->io->error($e->getMessage());
 
         continue;
       }
@@ -103,10 +106,10 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       $file->setFileUri($sanitizedUri);
-      $file->setFilename($file['sanitizedFilename']);
+      $file->setFilename($sanitizedFilename);
       $file->save();
 
-      $this->io()->success("File {$sanitizedUri} has been translited.");
+      $this->io->success("File {$sanitizedUri} has been translited.");
     }
     return DrushCommands::EXIT_SUCCESS;
   }
