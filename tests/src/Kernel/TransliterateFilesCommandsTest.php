@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Tests\TestFileCreationTrait;
+use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\file\Entity\File;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
-use Drupal\Tests\field\Kernel\FieldKernelTestBase;
-use Drupal\Tests\TestFileCreationTrait;
 
 /**
  * Tests transliterate file Drush command.
