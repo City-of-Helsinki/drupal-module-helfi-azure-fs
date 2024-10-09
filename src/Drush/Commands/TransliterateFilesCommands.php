@@ -91,6 +91,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
       $directory = $this->fileSystem->dirname($file->getFileUri());
       $sanitizedUri = sprintf('%s/%s', $directory, $sanitizedFilename);
+      $sanitizedUri = $this->streamWrapperManager->normalizeUri($sanitizedUri);
 
       try {
         $this->fileSystem->move($file->getFileUri(), $sanitizedUri);

@@ -62,6 +62,8 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
   public function testTransliterateFilesCommand() : void {
     /** @var \Drupal\helfi_azure_fs\AzureFileSystem $fileSystem */
     $fileSystem = $this->container->get('file_system');
+    /** @var \Drupal\file\FileStorage $fileStorage */
+    $fileStorage = $this->container->get('entity_type.manager')->getStorage('file');
     $this->assertInstanceOf(AzureFileSystem::class, $fileSystem);
 
     // Make sure transliterate setting is enabled.
@@ -79,7 +81,7 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
       $fileSystem->saveData('', $file);
       $this->assertFileExists($file);
 
-      File::create([
+      $fileStorage->create([
         'uri' => $file,
       ])->save();
     }
@@ -93,8 +95,13 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
     );
     $command->transliterate();
 
-    foreach ($files as $file => $expected) {
+    foreach ($files as $expected) {
       $this->assertFileExists($expected);
+      // Make sure uri and filename were updated too.
+      $files = $fileStorage->loadByProperties(['uri' => $expected]);
+      $this->assertCount(1, $files);
+      $file = reset($files);
+      $this->assertEquals($fileSystem->basename($expected), $file->getFilename());
     }
   }
 
