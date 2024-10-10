@@ -23,7 +23,6 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     'image',
     'file',
     'flysystem',
-    'flysystem_azure',
     'helfi_azure_fs',
   ];
 
