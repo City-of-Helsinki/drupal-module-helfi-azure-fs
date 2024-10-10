@@ -154,7 +154,7 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
       // copied to Azure blob storage. Each derivative is generated when the
       // image style URL is called for the first time, allowing the generation
       // to be decoupled from main request.
-      return $this->getDownloadUrl($uri);
+      return $this->externalUrls[$uri] = $this->getDownloadUrl($uri);
     }
     $target = $this->getTarget($uri);
 
