@@ -35,24 +35,6 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
   }
 
   /**
-   * Enable/disable transliterate settings.
-   *
-   * @param bool $enabled
-   *   Whether to enable file sanitization.
-   */
-  private function setTransliterateSetting(bool $enabled) : void {
-    \Drupal::configFactory()->getEditable('file.settings')
-      ->set('filename_sanitization', [
-        'transliterate' => $enabled,
-        'replace_whitespace' => TRUE,
-        'replace_non_alphanumeric' => TRUE,
-        'deduplicate_separators' => TRUE,
-        'lowercase' => TRUE,
-        'replacement_character' => '_',
-      ])->save();
-  }
-
-  /**
    * Make sure files are transliterated.
    */
   public function testTransliterateFilesCommand() : void {
@@ -61,9 +43,6 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
     /** @var \Drupal\file\FileStorage $fileStorage */
     $fileStorage = $this->container->get('entity_type.manager')->getStorage('file');
     $this->assertInstanceOf(AzureFileSystem::class, $fileSystem);
-
-    // Make sure transliterate setting is enabled.
-    $this->setTransliterateSetting(FALSE);
 
     $files = [
       'public://folder/Jöö.jpg' => 'public://folder/joo.jpg',
@@ -82,7 +61,17 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
       ])->save();
     }
 
-    $this->setTransliterateSetting(TRUE);
+    // Make sure file transliteration is enabled.
+    \Drupal::configFactory()->getEditable('file.settings')
+      ->set('filename_sanitization', [
+        'transliterate' => TRUE,
+        'replace_whitespace' => TRUE,
+        'replace_non_alphanumeric' => TRUE,
+        'deduplicate_separators' => TRUE,
+        'lowercase' => TRUE,
+        'replacement_character' => '_',
+      ])->save();
+
     $command = new TransliterateFilesCommands(
       $this->container->get('stream_wrapper_manager'),
       $this->container->get('event_dispatcher'),
