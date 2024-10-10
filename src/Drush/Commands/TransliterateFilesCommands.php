@@ -40,7 +40,6 @@ final class TransliterateFilesCommands extends DrushCommands {
     private readonly FileSystemInterface $fileSystem,
   ) {
     $this->io = new SymfonyStyle($this->input(), $this->output());
-
     parent::__construct();
   }
 
@@ -87,7 +86,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       $originalFileUri = $file->getFileUri();
 
       if (!file_exists($originalFileUri)) {
-        $this->io->warning("File {$originalFileUri} does not exist on disk. Skipping ...");
+        $this->io()->warning("File {$originalFileUri} does not exist on disk. Skipping ...");
 
         continue;
       }
@@ -99,7 +98,7 @@ final class TransliterateFilesCommands extends DrushCommands {
         $this->fileSystem->move($originalFileUri, $sanitizedUri);
       }
       catch (FileException $e) {
-        $this->io->error($e->getMessage());
+        $this->io()->error($e->getMessage());
 
         continue;
       }
@@ -112,7 +111,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       $file->setFilename($sanitizedFilename);
       $file->save();
 
-      $this->io->success("File '{$originalFileUri}' has been renamed to '{$sanitizedUri}'.");
+      $this->io()->success("File '{$originalFileUri}' has been renamed to '{$sanitizedUri}'.");
     }
     return DrushCommands::EXIT_SUCCESS;
   }
