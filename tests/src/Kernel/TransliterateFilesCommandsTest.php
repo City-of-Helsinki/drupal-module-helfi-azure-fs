@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
 use Drupal\Core\File\FileSystemInterface;
-use Drupal\Tests\TestFileCreationTrait;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
@@ -16,8 +15,6 @@ use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
  * @group helfi_azure_fs
  */
 class TransliterateFilesCommandsTest extends FieldKernelTestBase {
-
-  use TestFileCreationTrait;
 
   /**
    * {@inheritdoc}

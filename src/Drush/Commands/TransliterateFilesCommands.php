@@ -84,17 +84,19 @@ final class TransliterateFilesCommands extends DrushCommands {
       if ($sanitizedFilename === $file->getFilename()) {
         continue;
       }
-      if (!file_exists($file->getFileUri())) {
-        $this->io->warning("File {$file->getFileUri()} does not exist on disk. Skipping ...");
+      $originalFileUri = $file->getFileUri();
+
+      if (!file_exists($originalFileUri)) {
+        $this->io->warning("File {$originalFileUri} does not exist on disk. Skipping ...");
 
         continue;
       }
-      $directory = $this->fileSystem->dirname($file->getFileUri());
+      $directory = $this->fileSystem->dirname($originalFileUri);
       $sanitizedUri = sprintf('%s/%s', $directory, $sanitizedFilename);
       $sanitizedUri = $this->streamWrapperManager->normalizeUri($sanitizedUri);
 
       try {
-        $this->fileSystem->move($file->getFileUri(), $sanitizedUri);
+        $this->fileSystem->move($originalFileUri, $sanitizedUri);
       }
       catch (FileException $e) {
         $this->io->error($e->getMessage());
@@ -110,7 +112,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       $file->setFilename($sanitizedFilename);
       $file->save();
 
-      $this->io->success("File {$sanitizedUri} has been translited.");
+      $this->io->success("File '{$originalFileUri}' has been renamed to '{$sanitizedUri}'.");
     }
     return DrushCommands::EXIT_SUCCESS;
   }
