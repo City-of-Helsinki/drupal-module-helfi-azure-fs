@@ -7,6 +7,7 @@ namespace Drupal\helfi_azure_fs\Flysystem;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Url;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
@@ -149,15 +150,18 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
     // We use 'responsive_image' module, so each image can generate up to
     // four derivatives, each taking several seconds.
     // @see https://helsinkisolutionoffice.atlassian.net/browse/UHF-8204
-    if (str_contains($uri, 'styles/') && !file_exists($uri)) {
+    if (str_contains($uri, '/styles/') && !file_exists($uri)) {
       // Return a 'local' image style URL until the image is generated and
       // copied to Azure blob storage. Each derivative is generated when the
       // image style URL is called for the first time, allowing the generation
       // to be decoupled from main request.
-      $localUri = str_replace('azure://', 'public://', $uri);
-
-      return $this->externalUrls[$uri] = UrlHelper::encodePath(
-        $this->fileUrlGenerator->generateString($localUri));
+      //
+      // Flysystem URLs are intercepted by FlysystemPathProcessor. Image style
+      // URLs end up to flysystem.image_style route.
+      return $this->externalUrls[$uri] = Url::fromRoute('flysystem.serve', [
+        'scheme' => 'azure',
+        'filepath' => $this->getTarget($uri),
+      ])->toString();
     }
     $target = $this->getTarget($uri);
 
