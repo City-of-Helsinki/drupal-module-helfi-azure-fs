@@ -7,7 +7,6 @@ namespace Drupal\Tests\helfi_azure_fs\Kernel;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\TestFileCreationTrait;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
-use Drupal\file\Entity\File;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
 
