@@ -7,6 +7,7 @@ namespace Drupal\Tests\helfi_azure_fs\Unit;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Logger\LoggerChannelFactory;
+use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\Flysystem\Azure;
@@ -32,18 +33,25 @@ class AzureTest extends UnitTestCase {
    */
   public function testGetExternalUrl() : void {
     vfsStream::setup('flysystem');
-    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
-    $fileUrlGenerator->generateString(Argument::any())
-      ->shouldBeCalledTimes(2)
-      ->willReturn(
-        '/styles/test.jpg',
-        '/styles/test).jpg',
-      );
     $loggerFactory = new LoggerChannelFactory(
       $this->prophesize(RequestStack::class)->reveal(),
       $this->prophesize(AccountInterface::class)->reveal(),
     );
     $loggerFactory->addLogger($this->prophesize(LoggerInterface::class)->reveal());
+    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
+    $fileUrlGenerator->generateString(Argument::any());
+    $url_generator = $this->prophesize(UrlGeneratorInterface::class);
+    $url_generator
+      ->generateFromRoute(
+        'flysystem.serve',
+        Argument::any(),
+        ['absolute' => TRUE],
+        FALSE
+      )
+      ->shouldBeCalledTimes(1)
+      ->will(function ($args) {
+        return 'flysystem.serve: ' . $args[1]['filepath'];
+      });
 
     $configuration = [
       'protocol' => 'https',
@@ -55,19 +63,22 @@ class AzureTest extends UnitTestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', $loggerFactory);
     $container->set('file_url_generator', $fileUrlGenerator->reveal());
+    $container->set('url_generator', $url_generator->reveal());
+
+    // Required by Url::fromRoute.
+    \Drupal::setContainer($container);
+
     $azure = Azure::create($container, $configuration, 'helfi_azure', []);
     // Make sure non-image style URLs are served directly from blob storage.
     $this->assertEquals('https://test.blob.core.windows.net/test/test.jpg', $azure->getExternalUrl('vfs://test.jpg'));
     // Make sure image style URL is passed to file url generator service.
-    $this->assertEquals('/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
+    $this->assertEquals('flysystem.serve: styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
+    // Test static cache, as generateFromRoute should not be called 2nd time
+    // and is restricted above to 1 call.
+    $this->assertEquals('flysystem.serve: styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
 
     // Check that file uri is encoded.
     $this->assertEquals('https://test.blob.core.windows.net/test/test%29.jpg', $azure->getExternalUrl('vfs://test).jpg'));
-    $this->assertEquals('/styles/test%29.jpg', $azure->getExternalUrl('vfs://styles/test).jpg'));
-
-    // Test static cache, as generateString should not be called 3rd time
-    // and is restricted above to 2 calls.
-    $this->assertEquals('/styles/test.jpg', $azure->getExternalUrl('vfs://styles/test.jpg'));
   }
 
   /**
