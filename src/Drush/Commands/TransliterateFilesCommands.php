@@ -8,6 +8,7 @@ use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\TranslatableInterface;
 use Drupal\Core\File\Event\FileUploadSanitizeNameEvent;
 use Drupal\Core\File\Exception\FileException;
 use Drupal\Core\File\FileSystemInterface;
@@ -86,14 +87,15 @@ final class TransliterateFilesCommands extends DrushCommands {
       $conditionGroup
         ->condition($name, '/sites/default/files%', 'LIKE');
       $query->exists($name)
-        ->condition($conditionGroup)
-        ->accessCheck(FALSE);
+        ->condition($conditionGroup);
+      $query->accessCheck(FALSE);
       $ids = $query->execute();
 
       foreach ($ids as $id) {
         $entity = $this->entityTypeManager->getStorage($entityType)
           ->load($id);
 
+        assert($entity instanceof TranslatableInterface);
         foreach ($entity->getTranslationLanguages() as $language) {
           $this->processFieldLinks($entity->getTranslation($language->getId()), $name);
         }
@@ -112,7 +114,7 @@ final class TransliterateFilesCommands extends DrushCommands {
    */
   private function remoteFileExists(string $url) : bool {
     try {
-      $this->httpClient->head($url);
+      $this->httpClient->request('HEAD', $url);
 
       return TRUE;
     }
