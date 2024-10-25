@@ -146,6 +146,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       if ($this->remoteFileExists($href)) {
         continue;
       }
+      $this->io()->note(sprintf('Found a broken link [%s]: "%s"', $entity->toUrl()->toString(), $href));
       $basename = basename($href);
 
       // Test sanitized filename and urldecoded+sanitized filename.
@@ -165,7 +166,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
 
       if (!$newUrl) {
-        $this->io()->warning(sprintf('Failed to process the link "%s" for "%s"', $href, $entity->toUrl()->toString()));
+        $this->io()->warning(sprintf('Failed to process [%s]: "%s"', $entity->toUrl()->toString(), $href));
 
         continue;
       }
