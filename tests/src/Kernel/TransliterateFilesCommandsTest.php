@@ -8,6 +8,7 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
+use Drupal\Tests\helfi_api_base\Traits\ApiTestTrait;
 
 /**
  * Tests transliterate file Drush command.
@@ -15,6 +16,8 @@ use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
  * @group helfi_azure_fs
  */
 class TransliterateFilesCommandsTest extends FieldKernelTestBase {
+
+  use ApiTestTrait;
 
   /**
    * {@inheritdoc}
@@ -72,12 +75,7 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
         'replacement_character' => '_',
       ])->save();
 
-    $command = new TransliterateFilesCommands(
-      $this->container->get('stream_wrapper_manager'),
-      $this->container->get('event_dispatcher'),
-      $this->container->get('entity_type.manager'),
-      $fileSystem,
-    );
+    $command = TransliterateFilesCommands::create($this->container);
     $command->transliterate();
 
     foreach ($files as $expected) {
