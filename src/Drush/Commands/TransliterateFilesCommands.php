@@ -187,7 +187,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
 
       if (!$newUrl) {
-        $this->io()->warning(sprintf('Failed to process: "%s"', $href));
+        $this->io()->warning(sprintf('Failed to process [entity id: %s, entity type: %s]: "%s"', $entity->id(), $entity->getEntityTypeId(), $href));
 
         continue;
       }
