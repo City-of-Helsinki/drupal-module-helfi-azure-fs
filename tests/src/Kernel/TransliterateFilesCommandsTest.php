@@ -72,12 +72,7 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
         'replacement_character' => '_',
       ])->save();
 
-    $command = new TransliterateFilesCommands(
-      $this->container->get('stream_wrapper_manager'),
-      $this->container->get('event_dispatcher'),
-      $this->container->get('entity_type.manager'),
-      $fileSystem,
-    );
+    $command = TransliterateFilesCommands::create($this->container);
     $command->transliterate();
 
     foreach ($files as $expected) {
