@@ -8,7 +8,6 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
-use Drupal\Tests\helfi_api_base\Traits\ApiTestTrait;
 
 /**
  * Tests transliterate file Drush command.
@@ -16,8 +15,6 @@ use Drupal\Tests\helfi_api_base\Traits\ApiTestTrait;
  * @group helfi_azure_fs
  */
 class TransliterateFilesCommandsTest extends FieldKernelTestBase {
-
-  use ApiTestTrait;
 
   /**
    * {@inheritdoc}
