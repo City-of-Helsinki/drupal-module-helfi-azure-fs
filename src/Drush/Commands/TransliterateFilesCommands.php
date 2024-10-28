@@ -19,6 +19,7 @@ use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -111,12 +112,35 @@ final class TransliterateFilesCommands extends DrushCommands {
    *   TRUE if remote file exists, FALSE if not.
    */
   private function remoteFileExists(string $url) : bool {
+    // Skip wps since it seems to require a VPN.
+    if (str_contains('https://www.hel.fi/wps/', $url)) {
+      return TRUE;
+    }
+
     try {
-      $this->httpClient->request('HEAD', $url);
+      $this->httpClient->request('HEAD', $url, ['timeout' => 15]);
 
       return TRUE;
     }
-    catch (ClientException) {
+    catch (ClientException $e) {
+      $response = $e->getResponse();
+
+      // Skip non-404 responses.
+      if ($response->getStatusCode() !== 404) {
+        return TRUE;
+      }
+      $skip = [
+        'text/html',
+        'text/plain',
+      ];
+      foreach ($skip as $type) {
+        // Skip html content.
+        if (str_contains($response->getHeaderLine('Content-Type'), $type)) {
+          return TRUE;
+        }
+      }
+    }
+    catch (GuzzleException) {
     }
     return FALSE;
   }
@@ -142,11 +166,13 @@ final class TransliterateFilesCommands extends DrushCommands {
       if (!$href = $node->getAttribute('href')) {
         continue;
       }
+      $href = trim($href);
+
       // Do nothing if file exists already.
       if ($this->remoteFileExists($href)) {
         continue;
       }
-      $this->io()->note(sprintf('Found a broken link [%s]: "%s"', $entity->toUrl()->toString(), $href));
+      $this->io()->note(sprintf('Found a broken link "%s"', $href));
       $basename = basename($href);
 
       // Test sanitized filename and urldecoded+sanitized filename.
@@ -166,7 +192,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
 
       if (!$newUrl) {
-        $this->io()->warning(sprintf('Failed to process [%s]: "%s"', $entity->toUrl()->toString(), $href));
+        $this->io()->warning(sprintf('Failed to process: "%s"', $href));
 
         continue;
       }
