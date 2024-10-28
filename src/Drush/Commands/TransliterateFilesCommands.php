@@ -103,6 +103,24 @@ final class TransliterateFilesCommands extends DrushCommands {
   }
 
   /**
+   * Checks if the given link is valid.
+   *
+   * @param string $url
+   *   The URL.
+   *
+   * @return bool
+   *   TRUE if link is valid, FALSE if not.
+   */
+  private function isValidLink(string $url) : bool {
+    $validLinks = [
+      'blob.core.windows.net',
+      '/sites/default/files/',
+    ];
+
+    return (bool) array_filter($validLinks, fn ($link) => str_contains($url, $link));
+  }
+
+  /**
    * Checks if the given remote file exists.
    *
    * @param string $url
@@ -112,33 +130,10 @@ final class TransliterateFilesCommands extends DrushCommands {
    *   TRUE if remote file exists, FALSE if not.
    */
   private function remoteFileExists(string $url) : bool {
-    // Skip wps since it seems to require a VPN.
-    if (str_contains('https://www.hel.fi/wps/', $url)) {
-      return TRUE;
-    }
-
     try {
       $this->httpClient->request('HEAD', $url, ['timeout' => 15]);
 
       return TRUE;
-    }
-    catch (ClientException $e) {
-      $response = $e->getResponse();
-
-      // Skip non-404 responses.
-      if ($response->getStatusCode() !== 404) {
-        return TRUE;
-      }
-      $skip = [
-        'text/html',
-        'text/plain',
-      ];
-      foreach ($skip as $type) {
-        // Skip html content.
-        if (str_contains($response->getHeaderLine('Content-Type'), $type)) {
-          return TRUE;
-        }
-      }
     }
     catch (GuzzleException) {
     }
@@ -168,8 +163,8 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
       $href = trim($href);
 
-      // Do nothing if file exists already.
-      if ($this->remoteFileExists($href)) {
+      // Skip invalid links or links that does not result in 404 error.
+      if (!$this->isValidLink($href) || $this->remoteFileExists($href)) {
         continue;
       }
       $this->io()->note(sprintf('Found a broken link "%s"', $href));
