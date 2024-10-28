@@ -46,7 +46,6 @@ final class TransliterateFilesCommands extends DrushCommands {
     private readonly EntityFieldManagerInterface $entityFieldManager,
     private readonly ClientInterface $httpClient,
   ) {
-    $this->io = new SymfonyStyle($this->input(), $this->output());
     parent::__construct();
   }
 
