@@ -198,11 +198,11 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       $hasChanges = TRUE;
-      $value = str_replace($href, $newUrl, $value);
+      $node->setAttribute('href', str_replace($href, $newUrl, $value));
     }
 
     if ($hasChanges) {
-      $entity->set($fieldName, $value);
+      $entity->set($fieldName, Html::serialize($dom));
       $entity->save();
     }
   }
