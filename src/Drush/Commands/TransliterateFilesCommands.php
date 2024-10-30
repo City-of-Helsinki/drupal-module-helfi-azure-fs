@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs\Drush\Commands;
 
-use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
