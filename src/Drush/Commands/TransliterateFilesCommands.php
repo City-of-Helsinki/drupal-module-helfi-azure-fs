@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs\Drush\Commands;
 
+use Consolidation\OutputFormatters\StructuredData\RowsOfFields;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
@@ -198,11 +199,11 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       $hasChanges = TRUE;
-      $node->setAttribute('href', str_replace($href, $newUrl, $value));
+      $node->setAttribute('href', $newUrl);
     }
 
     if ($hasChanges) {
-      $entity->set($fieldName, Html::serialize($dom));
+      $entity->get($fieldName)->value = Html::serialize($dom);
       $entity->save();
     }
   }
