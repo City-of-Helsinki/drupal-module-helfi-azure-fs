@@ -167,7 +167,7 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       // Convert non-breaking spaces to normal spaces.
-      $href = str_replace('&nbsp;', ' ', htmlentities($href));
+      $href = preg_replace('/^(\\s|\\xC2\\xA0)+|(\\s|\\xC2\\xA0)+$/', '', $href);
       $href = trim($href);
 
       // Skip invalid links or links that does not result in 404 error.
