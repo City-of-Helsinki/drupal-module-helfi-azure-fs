@@ -58,10 +58,15 @@ final class TransliterateFilesCommands extends DrushCommands {
    *   The sanitized filename.
    */
   private function getSanitizedFilename(string $filename): string {
-    $event = new FileUploadSanitizeNameEvent($filename, '');
-    $this->eventDispatcher->dispatch($event);
+    try {
+      $event = new FileUploadSanitizeNameEvent($filename, '');
+      $this->eventDispatcher->dispatch($event);
+      return $event->getFilename();
+    }
+    catch (\InvalidArgumentException) {
+    }
+    return $filename;
 
-    return $event->getFilename();
   }
 
   /**
@@ -160,6 +165,8 @@ final class TransliterateFilesCommands extends DrushCommands {
       if (!$href = $node->getAttribute('href')) {
         continue;
       }
+      // Convert non-breaking spaces to normal spaces.
+      $href = preg_replace('/^(\\s|\\xC2\\xA0)+|(\\s|\\xC2\\xA0)+$/', '', $href);
       $href = trim($href);
 
       // Skip invalid links or links that does not result in 404 error.
@@ -191,11 +198,11 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       $hasChanges = TRUE;
-      $value = str_replace($href, $newUrl, $value);
+      $node->setAttribute('href', $newUrl);
     }
 
     if ($hasChanges) {
-      $entity->set($fieldName, $value);
+      $entity->get($fieldName)->value = Html::serialize($dom);
       $entity->save();
     }
   }
