@@ -31,6 +31,11 @@ function helfi_azure_fs_install($is_syncing) : void {
     ])
     ->set('make_unused_managed_files_temporary', TRUE)
     ->save();
+
+  // 6 hours.
+  \Drupal::configFactory()->getEditable('system.file')
+    ->set('temporary_maximum_age', 21600)
+    ->save();
 }
 
 /**
