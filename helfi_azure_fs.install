@@ -29,6 +29,7 @@ function helfi_azure_fs_install($is_syncing) : void {
       'lowercase' => TRUE,
       'replacement_character' => '_',
     ])
+    ->set('make_unused_managed_files_temporary', TRUE)
     ->save();
 }
 
@@ -45,5 +46,12 @@ function helfi_azure_fs_update_90201() : void {
  * Make sure file sanitize settings are enabled.
  */
 function helfi_azure_fs_update_90202() : void {
+  helfi_azure_fs_install(FALSE);
+}
+
+/**
+ * Make sure unused files are removed.
+ */
+function helfi_azure_fs_update_90203() : void {
   helfi_azure_fs_install(FALSE);
 }
