@@ -6,6 +6,7 @@ namespace Drupal\helfi_azure_fs\Drush\Commands;
 
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\File\Exception\InvalidStreamWrapperException;
 use Drupal\file\FileInterface;
 use Drush\Attributes\Command;
 use Drush\Commands\AutowireTrait;
@@ -60,7 +61,15 @@ class FileCleanerCommands extends DrushCommands {
         ->getStorage('file')
         ->load($result->fid);
 
-      $url = $file->createFileUrl(FALSE);
+      try {
+        $url = $file->createFileUrl(FALSE);
+      }
+      // URL generation fails if azure fs is not configured.
+      // This should only happen on local environment.
+      catch (InvalidStreamWrapperException $e) {
+        $url = $file->getFileUri();
+      }
+
       $this->io()->writeln("Marking {$url} for deletion");
 
       // Temporary files are eventually cleaned by hook_cron.
