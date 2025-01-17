@@ -1,6 +1,6 @@
 # Drupal Azure FS
 
-![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg) [![codecov](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs/branch/main/graph/badge.svg?token=46YWS8J8NN)](https://codecov.io/gh/City-of-Helsinki/drupal-module-helfi-azure-fs)
+![CI](https://github.com/City-of-Helsinki/drupal-module-helfi-azure-fs/workflows/CI/badge.svg) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=City-of-Helsinki_drupal-module-helfi-azure-fs&metric=coverage)](https://sonarcloud.io/summary/new_code?id=City-of-Helsinki_drupal-module-helfi-azure-fs)
 
 Provides various fixes to deal with Azure's NFS mount and an integration to Azure's Blob storage service using [flysystem](https://www.drupal.org/project/flysystem).
 
