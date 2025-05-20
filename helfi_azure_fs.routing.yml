@@ -1,0 +1,43 @@
+# These routes might be added back to flysystem:
+# https://www.drupal.org/project/flysystem/issues/3513799.
+# If the issue is fixed, these are no longer needed.
+# @see \Drupal\flysystem\Routing\FlysystemRoutes
+flysystem.image_style_redirect:
+  path: '/_flysystem-style-redirect/{image_style}/{scheme}'
+  defaults:
+    _controller: 'Drupal\flysystem\Controller\ImageStyleRedirectController::deliver'
+    _disable_route_normalizer: TRUE
+    required_derivative_scheme: 'azure'
+  requirements:
+    # Permissions are handled through Drupal access content permissions
+    _access: 'TRUE'
+    scheme: '^[a-zA-Z0-9+.-]+$'
+  options:
+    _maintenance_access: TRUE
+
+flysystem.image_style_redirect.serve:
+  path: '/_flysystem-style-redirect/{image_style}/{scheme}/{filepath}'
+  defaults:
+    _controller: 'Drupal\flysystem\Controller\ImageStyleRedirectController::deliver'
+    _disable_route_normalizer: TRUE
+    required_derivative_scheme: 'azure'
+  requirements:
+    # Permissions are handled through Drupal access content permissions
+    _access: 'TRUE'
+    scheme: '^[a-zA-Z0-9+.-]+$'
+    filepath: '.+'
+  options:
+    _maintenance_access: TRUE
+
+flysystem.image_style:
+  path: '/_flysystem/styles/{image_style}/{scheme}'
+  defaults:
+    _controller: 'Drupal\image\Controller\ImageStyleDownloadController::deliver'
+    _disable_route_normalizer: TRUE
+    required_derivative_scheme: 'azure'
+  requirements:
+    # Permissions are handled through Drupal access content permissions
+    _access: 'TRUE'
+    scheme: '^[a-zA-Z0-9+.-]+$'
+  options:
+    _maintenance_access: TRUE
