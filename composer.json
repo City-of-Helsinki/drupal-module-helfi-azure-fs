@@ -19,9 +19,6 @@
         "patches": {
             "drupal/flysystem": {
                 "https://www.drupal.org/i/3504144": "./public/modules/contrib/helfi_azure_fs/patches/3504144.patch"
-            },
-            "twistor/flysystem-stream-wrapper": {
-                "PHP 8.2 support (https://www.drupal.org/project/flysystem/issues/3387094)": "https://raw.githubusercontent.com/City-of-Helsinki/drupal-module-helfi-azure-fs/ddb222622b92d1c2b7db975a84167a00579a1ad0/patches/3387094-add-context-property-to-stream-wrapper.patch"
             }
         }
     }
