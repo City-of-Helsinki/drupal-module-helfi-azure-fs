@@ -1,0 +1,600 @@
+diff --git c/src/Asset/AssetDumper.php w/src/Asset/AssetDumper.php
+index ee9711e..00dbac0 100644
+--- c/src/Asset/AssetDumper.php
++++ w/src/Asset/AssetDumper.php
+@@ -20,15 +20,28 @@ class AssetDumper extends DrupalAssetDumper {
+    * {@inheritdoc}
+    */
+   public function dump($data, $file_extension) {
++    $path = $this->getSchemeForExtension($file_extension) . '://' . $file_extension;
+     // Prefix filename to prevent blocking by firewalls which reject files
+     // starting with "ad*".
+     $filename = $file_extension . '_' . Crypt::hashBase64($data) . '.' . $file_extension;
+     // Create the css/ or js/ path within the files folder.
+-    $path = $this->getSchemeForExtension($file_extension) . '://' . $file_extension;
+     $uri = $path . '/' . $filename;
++    return $this->dumpToUri($data, $file_extension, $uri);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function dumpToUri(string $data, string $file_extension, string $uri): string {
++    $path = $this->getSchemeForExtension($file_extension) . '://' . $file_extension;
+     // Create the CSS or JS file.
+-    $this->fileSystem->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-    if (!file_exists($uri) && !$this->fileSystem->saveData($data, $uri, FileExists::Replace)) {
++    $this->fileSystem->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);
++    try {
++      if (!file_exists($uri) && !$this->fileSystem->saveData($data, $uri, FileExists::Replace)) {
++        return FALSE;
++      }
++    }
++    catch (FileException $e) {
+       return FALSE;
+     }
+     // If CSS/JS gzip compression is enabled and the zlib extension is available
+@@ -39,8 +52,13 @@ class AssetDumper extends DrupalAssetDumper {
+     // file) in generating the file anyway. Sites on servers where rewrite rules
+     // aren't working can set css.gzip to FALSE in order to skip
+     // generating a file that won't be used.
+-    if (extension_loaded('zlib') && \Drupal::config('system.performance')->get($file_extension . '.gzip')) {// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-      if (!file_exists($uri . '.gz') && !$this->fileSystem->saveData(gzencode($data, 9, FORCE_GZIP), $uri . '.gz', FileExists::Replace)) {
++    if (extension_loaded('zlib') && \Drupal::config('system.performance')->get($file_extension . '.gzip')) {
++      try {
++        if (!file_exists($uri . '.gz') && !$this->fileSystem->saveData(gzencode($data, 9, FORCE_GZIP), $uri . '.gz', FileExists::Replace)) {
++          return FALSE;
++        }
++      }
++      catch (FileException $e) {
+         return FALSE;
+       }
+     }
+diff --git c/src/Asset/CssCollectionOptimizer.php w/src/Asset/CssCollectionOptimizer.php
+deleted file mode 100644
+index c9f033f..0000000
+--- c/src/Asset/CssCollectionOptimizer.php
++++ /dev/null
+@@ -1,41 +0,0 @@
+-<?php
+-
+-namespace Drupal\flysystem\Asset;
+-
+-use Drupal\Core\Asset\CssCollectionOptimizer as DrupalCssCollectionOptimizer;
+-use Drupal\Core\Logger\LoggerChannelTrait;
+-
+-/**
+- * Optimizes CSS assets.
+- */
+-class CssCollectionOptimizer extends DrupalCssCollectionOptimizer {// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-
+-  use SchemeExtensionTrait;
+-  use LoggerChannelTrait;
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function deleteAll() {
+-    $this->state->delete('drupal_css_cache_files');
+-    /** @var \Drupal\Core\File\FileSystem $file_system */
+-    $file_system = $this->fileSystem;
+-    $delete_stale = static function ($uri) use ($file_system) {
+-      // Default stale file threshold is 30 days (2592000 seconds).
+-      $stale_file_threshold = \Drupal::config('system.performance')->get('stale_file_threshold') ?? 2592000;// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-      if (\Drupal::time()->getRequestTime() - filemtime($uri) > $stale_file_threshold) {// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-        try {
+-          $file_system->delete($uri);
+-        }
+-        catch (\Exception $e) {
+-          \Drupal::service('logger.factory')->get('flysystem')->error($e->getMessage());// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-        }
+-      }
+-    };
+-    $css_dir = $this->getSchemeForExtension('css') . '://css';
+-    if (is_dir($css_dir)) {
+-      $file_system->scanDirectory($css_dir, '/.*/', ['callback' => $delete_stale]);
+-    }
+-  }
+-
+-}
+diff --git c/src/Asset/CssCollectionOptimizerLazy.php w/src/Asset/CssCollectionOptimizerLazy.php
+new file mode 100644
+index 0000000..7476e5b
+--- /dev/null
++++ w/src/Asset/CssCollectionOptimizerLazy.php
+@@ -0,0 +1,23 @@
++<?php
++
++namespace Drupal\flysystem\Asset;
++
++use Drupal\Core\Asset\CssCollectionOptimizerLazy as DrupalCssCollectionOptimizerLazy;
++
++/**
++ * Optimizes CSS assets.
++ */
++class CssCollectionOptimizerLazy extends DrupalCssCollectionOptimizerLazy {
++
++  use SchemeExtensionTrait;
++
++  /**
++   * {@inheritdoc}
++   */
++  public function deleteAll() {
++    $file_extension = 'css';
++    $path = $this->getSchemeForExtension($file_extension) . '://' . $file_extension;
++    $this->fileSystem->deleteRecursive($path);
++  }
++
++}
+diff --git c/src/Asset/CssOptimizer.php w/src/Asset/CssOptimizer.php
+deleted file mode 100644
+index 0cb9857..0000000
+--- c/src/Asset/CssOptimizer.php
++++ /dev/null
+@@ -1,29 +0,0 @@
+-<?php
+-
+-namespace Drupal\flysystem\Asset;
+-
+-use Drupal\Core\Asset\CssOptimizer as DrupalCssOptimizer;
+-
+-/**
+- * Changes Drupal\Core\Asset\CssOptimizer to not remove absolute URLs.
+- *
+- * @codeCoverageIgnore
+- */
+-class CssOptimizer extends DrupalCssOptimizer {
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function rewriteFileURI($matches): string {// @codingStandardsIgnoreLine
+-    // Prefix with base and remove '../' segments where possible.
+-    $path = $this->rewriteFileURIBasePath . $matches[1];
+-    $last = '';
+-    while ($path != $last) {
+-      $last = $path;
+-      $path = preg_replace('`(^|/)(?!\.\./)([^/]+)/\.\./`', '$1', $path);
+-    }
+-    // file_url_transform_relative() was removed here.
+-    return 'url(' . $this->fileUrlGenerator->generate($path)?->toString() . ')';
+-  }
+-
+-}
+diff --git c/src/Asset/JsCollectionOptimizer.php w/src/Asset/JsCollectionOptimizer.php
+deleted file mode 100644
+index 6238c81..0000000
+--- c/src/Asset/JsCollectionOptimizer.php
++++ /dev/null
+@@ -1,39 +0,0 @@
+-<?php
+-
+-namespace Drupal\flysystem\Asset;
+-
+-use Drupal\Core\Asset\JsCollectionOptimizer as DrupalJsCollectionOptimizer;
+-
+-/**
+- * Optimizes JavaScript assets.
+- */
+-class JsCollectionOptimizer extends DrupalJsCollectionOptimizer {// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-
+-  use SchemeExtensionTrait;
+-
+-  /**
+-   * {@inheritdoc}
+-   */
+-  public function deleteAll() {
+-    $this->state->delete('system.js_cache_files');
+-    /** @var \Drupal\Core\File\FileSystem $file_system */
+-    $file_system = $this->fileSystem;
+-    $delete_stale = static function ($uri) use ($file_system) {
+-      // Default stale file threshold is 30 days (2592000 seconds).
+-      $stale_file_threshold = \Drupal::config('system.performance')->get('stale_file_threshold') ?? 2592000;// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-      if (\Drupal::time()->getRequestTime() - filemtime($uri) > $stale_file_threshold) {// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-        try {
+-          $file_system->delete($uri);
+-        }
+-        catch (\Exception $e) {
+-          \Drupal::service('logger.factory')->get('flysystem')->error($e->getMessage());// @phpstan-ignore-line @codingStandardsIgnoreLine 
+-        }
+-      }
+-    };
+-    $js_dir = $this->getSchemeForExtension('js') . '://js';
+-    if (is_dir($js_dir)) {
+-      $file_system->scanDirectory($js_dir, '/.*/', ['callback' => $delete_stale]);
+-    }
+-  }
+-
+-}
+diff --git c/src/Asset/JsCollectionOptimizerLazy.php w/src/Asset/JsCollectionOptimizerLazy.php
+new file mode 100644
+index 0000000..83e99a5
+--- /dev/null
++++ w/src/Asset/JsCollectionOptimizerLazy.php
+@@ -0,0 +1,23 @@
++<?php
++
++namespace Drupal\flysystem\Asset;
++
++use Drupal\Core\Asset\JsCollectionOptimizerLazy as DrupalJsCollectionOptimizerLazy;
++
++/**
++ * Optimizes JavaScript assets.
++ */
++class JsCollectionOptimizerLazy extends DrupalJsCollectionOptimizerLazy {
++
++  use SchemeExtensionTrait;
++
++  /**
++   * {@inheritdoc}
++   */
++  public function deleteAll() {
++    $file_extension = 'js';
++    $path = $this->getSchemeForExtension($file_extension) . '://' . $file_extension;
++    $this->fileSystem->deleteRecursive($path);
++  }
++
++}
+diff --git c/src/Asset/SchemeExtensionTrait.php w/src/Asset/SchemeExtensionTrait.php
+index 4a58c41..8dccb86 100644
+--- c/src/Asset/SchemeExtensionTrait.php
++++ w/src/Asset/SchemeExtensionTrait.php
+@@ -20,19 +20,19 @@ trait SchemeExtensionTrait {
+    *   The scheme that should serve the extension.
+    */
+   public function getSchemeForExtension($extension) {
+-    $has_assets_scheme = class_exists(AssetsStream::class);
++
+     $extension_scheme = 'assets';
+ 
+     foreach (Settings::get('flysystem', []) as $scheme => $configuration) {
+       if (!empty($configuration['serve_' . $extension]) && !empty($configuration['driver'])) {
+-        if ($has_assets_scheme) {
+-          @trigger_error(sprintf('The serve_%s Flysystem option is deprecated in flysystem:2.1.0 and is removed from flysystem:2.3.0. Use the assets:// stream wrapper instead. See https://www.drupal.org/node/3328126', $extension), E_USER_DEPRECATED);
+-        }
+         // Don't break, the last configured one will win.
+         $extension_scheme = $scheme;
++        if (class_exists(AssetsStream::class)) {
++          @trigger_error(sprintf('The serve_%s Flysystem option is deprecated in flysystem:2.1.0 and is removed from flysystem:3.0.0. Use the assets:// stream wrapper instead. See https://www.drupal.org/node/3328126', $extension), E_USER_DEPRECATED);
++        }
++
+       }
+     }
+-
+     return $extension_scheme;
+   }
+ 
+diff --git c/src/FlysystemServiceProvider.php w/src/FlysystemServiceProvider.php
+index d245320..0b17988 100644
+--- c/src/FlysystemServiceProvider.php
++++ w/src/FlysystemServiceProvider.php
+@@ -19,8 +19,11 @@ class FlysystemServiceProvider implements ServiceProviderInterface {
+    */
+   public function register(ContainerBuilder $container) {
+ 
+-    $this->swapDumper($container, 'js');
+-    $this->swapDumper($container, 'css');
++    // Configure js/css asset swappers.
++    $assets = ['js', 'css'];
++    foreach ($assets as $asset) {
++      $this->swapDumper($container, $asset);
++    }
+ 
+     foreach (Settings::get('flysystem', []) as $scheme => $settings) {
+ 
+@@ -55,7 +58,6 @@ class FlysystemServiceProvider implements ServiceProviderInterface {
+     if (!$container->has('asset.' . $extension . '.dumper')) {
+       return;
+     }
+-
+     if (!$container->has('asset.' . $extension . '.collection_optimizer')) {
+       return;
+     }
+@@ -65,21 +67,13 @@ class FlysystemServiceProvider implements ServiceProviderInterface {
+       return;
+     }
+ 
+-    $optimizer = $container->getDefinition('asset.' . $extension . '.collection_optimizer');
+-    if ($optimizer->getClass() === 'Drupal\Core\Asset\\' . ucfirst($extension) . 'CollectionOptimizer') {
+-      @trigger_error(sprintf('The serve_%s Flysystem option is deprecated in flysystem:2.1.0 and is removed from flysystem:2.3.0. Use the assets:// stream wrapper instead. See https://www.drupal.org/node/3328126', $extension), E_USER_DEPRECATED);
+-      $optimizer->setClass('Drupal\flysystem\Asset\\' . ucfirst($extension) . 'CollectionOptimizer');
+-    }
+-
+     $container
+       ->getDefinition('asset.' . $extension . '.dumper')
+       ->setClass('Drupal\flysystem\Asset\AssetDumper');
++    $container
++      ->getDefinition('asset.' . $extension . '.collection_optimizer')
++      ->setClass('Drupal\flysystem\Asset\\' . ucfirst($extension) . 'CollectionOptimizerLazy');
+ 
+-    if ($extension === 'css') {
+-      $container
+-        ->getDefinition('asset.' . $extension . '.optimizer')
+-        ->setClass('Drupal\flysystem\Asset\\' . ucfirst($extension) . 'Optimizer');
+-    }
+   }
+ 
+ }
+diff --git c/tests/src/Kernel/CollectionOptimizerTest.php w/tests/src/Kernel/CollectionOptimizerTest.php
+index bf84240..c506521 100644
+--- c/tests/src/Kernel/CollectionOptimizerTest.php
++++ w/tests/src/Kernel/CollectionOptimizerTest.php
+@@ -2,18 +2,14 @@
+ 
+ namespace Drupal\Tests\flysystem\Kernel;
+ 
+-use Drupal\Core\Asset\AssetCollectionGrouperInterface;
+-use Drupal\Core\Asset\AssetOptimizerInterface;
+-use Drupal\Core\State\StateInterface;
+-use Drupal\flysystem\Asset\AssetDumper;
+-use Drupal\flysystem\Asset\CssCollectionOptimizer;
+-use Drupal\flysystem\Asset\JsCollectionOptimizer;
++use Drupal\flysystem\Asset\CssCollectionOptimizerLazy;
++use Drupal\flysystem\Asset\JsCollectionOptimizerLazy;
+ use Drupal\KernelTests\KernelTestBase;
+ use org\bovigo\vfs\vfsStream;
+ 
+ /**
+- * @covers \Drupal\flysystem\Asset\JsCollectionOptimizer
+- * @covers \Drupal\flysystem\Asset\CssCollectionOptimizer
++ * @covers \Drupal\flysystem\Asset\JsCollectionOptimizerLazy
++ * @covers \Drupal\flysystem\Asset\CssCollectionOptimizerLazy
+  *
+  * @group flysystem
+  */
+@@ -24,26 +20,11 @@ class CollectionOptimizerTest extends KernelTestBase {
+    */
+   protected static $modules = ['file'];
+ 
+-  /**
+-   * The file URL generator.
+-   *
+-   * @var \Drupal\Core\File\FileUrlGeneratorInterface
+-   */
+-  protected $fileUrlGenerator;
+-
+-  /**
+-   * DateTime service.
+-   *
+-   * @var Drupal\Component\Datetime\TimeInterface
+-   */
+-  protected $time;
+-
+   /**
+    * {@inheritdoc}
+    */
+   public function setUp(): void {
+     parent::setUp();
+-    $this->fileUrlGenerator = $this->container->get('file_url_generator');
+     $this->cleanUp();
+   }
+ 
+@@ -56,7 +37,7 @@ class CollectionOptimizerTest extends KernelTestBase {
+   }
+ 
+   /**
+-   * @covers \Drupal\flysystem\Asset\JsCollectionOptimizer
++   * @covers \Drupal\flysystem\Asset\JsCollectionOptimizerLazy
+    */
+   public function testJsCollectionOptimizer() {
+     vfsStream::setup('js');
+@@ -68,35 +49,38 @@ class CollectionOptimizerTest extends KernelTestBase {
+       ],
+     ]);
+ 
+-    foreach ($this->jsFilesUnderTest() as $js_file => $expired) {
++    foreach ($this->jsFilesUnderTest() as $js_file) {
+       file_put_contents($js_file, 'dummy');
+-      if ($expired === TRUE) {
+-        // 2592000 is the default value of stale_file_threshold
+-        touch($js_file, \Drupal::time()->getRequestTime() - 2592001);
+-        continue;
+-      }
+-      touch($js_file, \Drupal::time()->getRequestTime() - 2591999);
++      touch($js_file, \Drupal::time()->getRequestTime() - 2592001);
++
+     }
+ 
+-    $grouper = $this->prophesize(AssetCollectionGrouperInterface::class);
+-    $dumper = $this->prophesize(AssetDumper::class);
+-    $state = $this->prophesize(StateInterface::class);
+-    $js_optimizer = $this->prophesize(AssetOptimizerInterface::class);
+-    $optimizer = new JsCollectionOptimizer($grouper->reveal(), $js_optimizer->reveal(), $dumper->reveal(), $state->reveal(), $this->container->get('file_system'));
++    foreach ($this->jsFilesUnderTest() as $js_file) {
++      $this->assertFileExists($js_file);
++    }
++
++    $optimizer = new JsCollectionOptimizerLazy(
++      $this->container->get('asset.js.collection_grouper'),
++      $this->container->get('asset.js.optimizer'),
++      $this->container->get('theme.manager'),
++      $this->container->get('library.dependency_resolver'),
++      $this->container->get('request_stack'),
++      $this->container->get('file_system'),
++      $this->container->get('config.factory'),
++      $this->container->get('file_url_generator'),
++      $this->container->get('datetime.time'),
++      $this->container->get('language_manager')
++    );
+     $optimizer->deleteAll();
+ 
+-    foreach ($this->jsFilesUnderTest() as $js_file => $expired) {
+-      if ($expired === TRUE) {
+-        $this->assertFileDoesNotExist($js_file);
+-        continue;
+-      }
+-      $this->assertFileExists($js_file);
++    foreach ($this->jsFilesUnderTest() as $js_file) {
++      $this->assertFileDoesNotExist($js_file);
+     }
+ 
+   }
+ 
+   /**
+-   * @covers \Drupal\flysystem\Asset\CssCollectionOptimizer
++   * @covers \Drupal\flysystem\Asset\CssCollectionOptimizerLazyt
+    */
+   public function testCssCollectionOptimizer() {
+     vfsStream::setup('css');
+@@ -108,30 +92,31 @@ class CollectionOptimizerTest extends KernelTestBase {
+       ],
+     ]);
+ 
+-    foreach ($this->cssFilesUnderTest() as $css_file => $expired) {
++    foreach ($this->cssFilesUnderTest() as $css_file) {
+       file_put_contents($css_file, 'dummy');
+-      if ($expired === TRUE) {
+-        // 2592000 is the default value of stale_file_threshold
+-        touch($css_file, \Drupal::time()->getRequestTime() - 2592001);
+-        continue;
+-      }
+-      touch($css_file, \Drupal::time()->getRequestTime() - 2591999);
++      touch($css_file, \Drupal::time()->getRequestTime() - 2592001);
+     }
+ 
+-    $grouper = $this->prophesize(AssetCollectionGrouperInterface::class);
+-    $dumper = $this->prophesize(AssetDumper::class);
+-    $state = $this->prophesize(StateInterface::class);
+-    $cs_optimizer = $this->prophesize(AssetOptimizerInterface::class);
++    foreach ($this->cssFilesUnderTest() as $css_file) {
++      $this->assertFileExists($css_file);
++    }
+ 
+-    $optimizer = new CssCollectionOptimizer($grouper->reveal(), $cs_optimizer->reveal(), $dumper->reveal(), $state->reveal(), $this->container->get('file_system'));
++    $optimizer = new CssCollectionOptimizerLazy(
++      $this->container->get('asset.css.collection_grouper'),
++      $this->container->get('asset.css.optimizer'),
++      $this->container->get('theme.manager'),
++      $this->container->get('library.dependency_resolver'),
++      $this->container->get('request_stack'),
++      $this->container->get('file_system'),
++      $this->container->get('config.factory'),
++      $this->container->get('file_url_generator'),
++      $this->container->get('datetime.time'),
++      $this->container->get('language_manager')
++    );
+     $optimizer->deleteAll();
+ 
+-    foreach ($this->cssFilesUnderTest() as $css_file => $expired) {
+-      if ($expired === TRUE) {
+-        $this->assertFileDoesNotExist($css_file);
+-        continue;
+-      }
+-      $this->assertFileExists($css_file);
++    foreach ($this->cssFilesUnderTest() as $css_file) {
++      $this->assertFileDoesNotExist($css_file);
+     }
+ 
+   }
+@@ -145,12 +130,12 @@ class CollectionOptimizerTest extends KernelTestBase {
+    */
+   private function cssFilesUnderTest() {
+     return [
+-      'vfs://css/foo_expired.css' => TRUE,
+-      'vfs://css/bar_expired.css' => TRUE,
+-      'vfs://css/baz_expired.css' => TRUE,
+-      'vfs://css/foo.css' => FALSE,
+-      'vfs://css/bar.css' => FALSE,
+-      'vfs://css/baz.css' => FALSE,
++      'vfs://css/foo_expired.css',
++      'vfs://css/bar_expired.css',
++      'vfs://css/baz_expired.css',
++      'vfs://css/foo.css',
++      'vfs://css/bar.css',
++      'vfs://css/baz.css',
+     ];
+   }
+ 
+@@ -163,12 +148,12 @@ class CollectionOptimizerTest extends KernelTestBase {
+    */
+   private function jsFilesUnderTest() {
+     return [
+-      'vfs://js/foo_expired.js' => TRUE,
+-      'vfs://js/bar_expired.js' => TRUE,
+-      'vfs://js/baz_expired.js' => TRUE,
+-      'vfs://js/foo.js' => FALSE,
+-      'vfs://js/bar.js' => FALSE,
+-      'vfs://js/zoo.js' => FALSE,
++      'vfs://js/foo_expired.js',
++      'vfs://js/bar_expired.js',
++      'vfs://js/baz_expired.js',
++      'vfs://js/foo.js',
++      'vfs://js/bar.js',
++      'vfs://js/zoo.js',
+     ];
+   }
+ 
+diff --git c/tests/src/Unit/FlysystemServiceProviderTest.php w/tests/src/Unit/FlysystemServiceProviderTest.php
+index a0c392c..7421415 100644
+--- c/tests/src/Unit/FlysystemServiceProviderTest.php
++++ w/tests/src/Unit/FlysystemServiceProviderTest.php
+@@ -3,15 +3,14 @@
+ namespace Drupal\Tests\flysystem\Unit;
+ 
+ use Drupal\Core\Asset\AssetDumper;
+-use Drupal\Core\Asset\CssCollectionOptimizer;
++use Drupal\Core\Asset\CssCollectionOptimizerLazy;
+ use Drupal\Core\Asset\CssOptimizer;
+-use Drupal\Core\Asset\JsCollectionOptimizer;
++use Drupal\Core\Asset\JsCollectionOptimizerLazy;
+ use Drupal\Core\DependencyInjection\ContainerBuilder;
+ use Drupal\Core\Site\Settings;
+ use Drupal\flysystem\Asset\AssetDumper as FlysystemAssetDumper;
+-use Drupal\flysystem\Asset\CssCollectionOptimizer as FlysystemCssCollectionOptimizer;
+-use Drupal\flysystem\Asset\CssOptimizer as FlysystemCssOptimizer;
+-use Drupal\flysystem\Asset\JsCollectionOptimizer as FlysystemJsCollectionOptimizer;
++use Drupal\flysystem\Asset\CssCollectionOptimizerLazy as FlysystemCssCollectionOptimizerLazy;
++use Drupal\flysystem\Asset\JsCollectionOptimizerLazy as FlysystemJsCollectionOptimizerLazy;
+ use Drupal\flysystem\FlysystemBridge;
+ use Drupal\flysystem\FlysystemServiceProvider;
+ use Drupal\flysystem\PathProcessor\LocalPathProcessor;
+@@ -94,7 +93,7 @@ class FlysystemServiceProviderTest extends UnitTestCase {
+   public function testSwappingJsServices() {
+     // Test swapping the asset dumper.
+     $this->container->register('asset.js.dumper', AssetDumper::class);
+-    $this->container->register('asset.js.collection_optimizer', JsCollectionOptimizer::class);// @phpstan-ignore-line @codingStandardsIgnoreLine 
++    $this->container->register('asset.js.collection_optimizer', JsCollectionOptimizerLazy::class);// @phpstan-ignore-line @codingStandardsIgnoreLine 
+ 
+     new Settings([
+       'flysystem' => [
+@@ -106,7 +105,7 @@ class FlysystemServiceProviderTest extends UnitTestCase {
+     ]);
+     (new FlysystemServiceProvider())->register($this->container);
+     $this->assertSame(FlysystemAssetDumper::class, $this->container->getDefinition('asset.js.dumper')->getClass());
+-    $this->assertSame(FlysystemJsCollectionOptimizer::class, $this->container->getDefinition('asset.js.collection_optimizer')->getClass());
++    $this->assertSame(FlysystemJsCollectionOptimizerLazy::class, $this->container->getDefinition('asset.js.collection_optimizer')->getClass());
+   }
+ 
+   /**
+@@ -115,7 +114,7 @@ class FlysystemServiceProviderTest extends UnitTestCase {
+   public function testSwappingCssServices() {
+     // Test swapping the asset dumper.
+     $this->container->register('asset.css.dumper', AssetDumper::class);
+-    $this->container->register('asset.css.collection_optimizer', CssCollectionOptimizer::class);// @phpstan-ignore-line @codingStandardsIgnoreLine 
++    $this->container->register('asset.css.collection_optimizer', CssCollectionOptimizerLazy::class);// @phpstan-ignore-line @codingStandardsIgnoreLine 
+     $this->container->register('asset.css.optimizer', CssOptimizer::class);
+ 
+     new Settings([
+@@ -130,8 +129,7 @@ class FlysystemServiceProviderTest extends UnitTestCase {
+     (new FlysystemServiceProvider())->register($this->container);
+ 
+     $this->assertSame(FlysystemAssetDumper::class, $this->container->getDefinition('asset.css.dumper')->getClass());
+-    $this->assertSame(FlysystemCssCollectionOptimizer::class, $this->container->getDefinition('asset.css.collection_optimizer')->getClass());
+-    $this->assertSame(FlysystemCssOptimizer::class, $this->container->getDefinition('asset.css.optimizer')->getClass());
++    $this->assertSame(FlysystemCssCollectionOptimizerLazy::class, $this->container->getDefinition('asset.css.collection_optimizer')->getClass());
+   }
+ 
+ }
+diff --git c/tests/src/Unit/InstallFunctionsTest.php w/tests/src/Unit/InstallFunctionsTest.php
+index dbe4887..58edf5d 100644
+--- c/tests/src/Unit/InstallFunctionsTest.php
++++ w/tests/src/Unit/InstallFunctionsTest.php
+@@ -7,7 +7,7 @@ use Drupal\Core\Site\Settings;
+ use Drupal\flysystem\FlysystemFactory;
+ use Drupal\Tests\UnitTestCase;
+ use Symfony\Component\DependencyInjection\ContainerBuilder;
+-use Codementality\FlysystemStreamWrapper;
++use Codementality\FlysystemStreamWrapper\FlysystemStreamWrapper;
+ 
+ /**
+  * Tests flysystem.install functions.

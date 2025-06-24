@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/flysystem": "^2.1@RC",
+        "drupal/flysystem": "^2.2",
         "microsoft/azure-storage-blob": "^1.1"
     },
     "require-dev": {
@@ -17,11 +17,8 @@
     },
     "extra": {
         "patches": {
-            "twistor/flysystem-stream-wrapper": {
-                "PHP 8.2 support (https://www.drupal.org/project/flysystem/issues/3387094)": "https://raw.githubusercontent.com/City-of-Helsinki/drupal-module-helfi-azure-fs/ddb222622b92d1c2b7db975a84167a00579a1ad0/patches/3387094-add-context-property-to-stream-wrapper.patch"
-            },
             "drupal/flysystem": {
-                "UHF-10544 D10.3 support (https://drupal.org/i/3457193)": "https://raw.githubusercontent.com/City-of-Helsinki/drupal-module-helfi-azure-fs/82f0dc93d14357011d12d219f5d1641da7ae6960/patches/3457193.patch"
+                "https://www.drupal.org/i/3504144": "./public/modules/contrib/helfi_azure_fs/patches/3504144.patch"
             }
         }
     }
