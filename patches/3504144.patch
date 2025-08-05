@@ -1,7 +1,7 @@
-diff --git c/src/Asset/AssetDumper.php w/src/Asset/AssetDumper.php
-index ee9711e..00dbac0 100644
---- c/src/Asset/AssetDumper.php
-+++ w/src/Asset/AssetDumper.php
+diff --git a/src/Asset/AssetDumper.php b/src/Asset/AssetDumper.php
+index ee9711edcf64009fa2444e650768539cd324b8e1..00dbac08fea754b7a1f87bb45b8cde139ee99c5e 100644
+--- a/src/Asset/AssetDumper.php
++++ b/src/Asset/AssetDumper.php
 @@ -20,15 +20,28 @@ class AssetDumper extends DrupalAssetDumper {
     * {@inheritdoc}
     */
@@ -50,10 +50,10 @@ index ee9711e..00dbac0 100644
          return FALSE;
        }
      }
-diff --git c/src/Asset/CssCollectionOptimizer.php w/src/Asset/CssCollectionOptimizer.php
+diff --git a/src/Asset/CssCollectionOptimizer.php b/src/Asset/CssCollectionOptimizer.php
 deleted file mode 100644
-index c9f033f..0000000
---- c/src/Asset/CssCollectionOptimizer.php
+index c9f033f1ce05da3c62665863c8324fad207bdd7b..0000000000000000000000000000000000000000
+--- a/src/Asset/CssCollectionOptimizer.php
 +++ /dev/null
 @@ -1,41 +0,0 @@
 -<?php
@@ -97,11 +97,11 @@ index c9f033f..0000000
 -  }
 -
 -}
-diff --git c/src/Asset/CssCollectionOptimizerLazy.php w/src/Asset/CssCollectionOptimizerLazy.php
+diff --git a/src/Asset/CssCollectionOptimizerLazy.php b/src/Asset/CssCollectionOptimizerLazy.php
 new file mode 100644
-index 0000000..7476e5b
+index 0000000000000000000000000000000000000000..7476e5be0b5f30b3140a2956082af21a952b84a0
 --- /dev/null
-+++ w/src/Asset/CssCollectionOptimizerLazy.php
++++ b/src/Asset/CssCollectionOptimizerLazy.php
 @@ -0,0 +1,23 @@
 +<?php
 +
@@ -126,10 +126,10 @@ index 0000000..7476e5b
 +  }
 +
 +}
-diff --git c/src/Asset/CssOptimizer.php w/src/Asset/CssOptimizer.php
+diff --git a/src/Asset/CssOptimizer.php b/src/Asset/CssOptimizer.php
 deleted file mode 100644
-index 0cb9857..0000000
---- c/src/Asset/CssOptimizer.php
+index 0cb98574d7f1c7ce2352d993d582590352c66e63..0000000000000000000000000000000000000000
+--- a/src/Asset/CssOptimizer.php
 +++ /dev/null
 @@ -1,29 +0,0 @@
 -<?php
@@ -161,10 +161,10 @@ index 0cb9857..0000000
 -  }
 -
 -}
-diff --git c/src/Asset/JsCollectionOptimizer.php w/src/Asset/JsCollectionOptimizer.php
+diff --git a/src/Asset/JsCollectionOptimizer.php b/src/Asset/JsCollectionOptimizer.php
 deleted file mode 100644
-index 6238c81..0000000
---- c/src/Asset/JsCollectionOptimizer.php
+index 6238c8193c173050e04b6163770b5edab364651f..0000000000000000000000000000000000000000
+--- a/src/Asset/JsCollectionOptimizer.php
 +++ /dev/null
 @@ -1,39 +0,0 @@
 -<?php
@@ -206,11 +206,11 @@ index 6238c81..0000000
 -  }
 -
 -}
-diff --git c/src/Asset/JsCollectionOptimizerLazy.php w/src/Asset/JsCollectionOptimizerLazy.php
+diff --git a/src/Asset/JsCollectionOptimizerLazy.php b/src/Asset/JsCollectionOptimizerLazy.php
 new file mode 100644
-index 0000000..83e99a5
+index 0000000000000000000000000000000000000000..83e99a5894a56a9dae398de6da377a666b637592
 --- /dev/null
-+++ w/src/Asset/JsCollectionOptimizerLazy.php
++++ b/src/Asset/JsCollectionOptimizerLazy.php
 @@ -0,0 +1,23 @@
 +<?php
 +
@@ -235,10 +235,10 @@ index 0000000..83e99a5
 +  }
 +
 +}
-diff --git c/src/Asset/SchemeExtensionTrait.php w/src/Asset/SchemeExtensionTrait.php
-index 4a58c41..8dccb86 100644
---- c/src/Asset/SchemeExtensionTrait.php
-+++ w/src/Asset/SchemeExtensionTrait.php
+diff --git a/src/Asset/SchemeExtensionTrait.php b/src/Asset/SchemeExtensionTrait.php
+index 4a58c41c9426b0181b153bef97fc1a68fca41aa4..8dccb86f42f1f8ba708ca075dd3c25a6ee0c5aab 100644
+--- a/src/Asset/SchemeExtensionTrait.php
++++ b/src/Asset/SchemeExtensionTrait.php
 @@ -20,19 +20,19 @@ trait SchemeExtensionTrait {
     *   The scheme that should serve the extension.
     */
@@ -264,10 +264,10 @@ index 4a58c41..8dccb86 100644
      return $extension_scheme;
    }
  
-diff --git c/src/FlysystemServiceProvider.php w/src/FlysystemServiceProvider.php
-index d245320..0b17988 100644
---- c/src/FlysystemServiceProvider.php
-+++ w/src/FlysystemServiceProvider.php
+diff --git a/src/FlysystemServiceProvider.php b/src/FlysystemServiceProvider.php
+index d24532017a9b834ac7bc5ffd4a6facb37335e3b5..0b179883d20dc28b80834e0cff5e18cadb72104c 100644
+--- a/src/FlysystemServiceProvider.php
++++ b/src/FlysystemServiceProvider.php
 @@ -19,8 +19,11 @@ class FlysystemServiceProvider implements ServiceProviderInterface {
     */
    public function register(ContainerBuilder $container) {
@@ -315,10 +315,10 @@ index d245320..0b17988 100644
    }
  
  }
-diff --git c/tests/src/Kernel/CollectionOptimizerTest.php w/tests/src/Kernel/CollectionOptimizerTest.php
-index bf84240..c506521 100644
---- c/tests/src/Kernel/CollectionOptimizerTest.php
-+++ w/tests/src/Kernel/CollectionOptimizerTest.php
+diff --git a/tests/src/Kernel/CollectionOptimizerTest.php b/tests/src/Kernel/CollectionOptimizerTest.php
+index bf842406fd19048bab66c034a56d36bfdf3e4562..c506521de004c935ef0c9db6f0e76a0b34545342 100644
+--- a/tests/src/Kernel/CollectionOptimizerTest.php
++++ b/tests/src/Kernel/CollectionOptimizerTest.php
 @@ -2,18 +2,14 @@
  
  namespace Drupal\Tests\flysystem\Kernel;
@@ -524,10 +524,10 @@ index bf84240..c506521 100644
      ];
    }
  
-diff --git c/tests/src/Unit/FlysystemServiceProviderTest.php w/tests/src/Unit/FlysystemServiceProviderTest.php
-index a0c392c..7421415 100644
---- c/tests/src/Unit/FlysystemServiceProviderTest.php
-+++ w/tests/src/Unit/FlysystemServiceProviderTest.php
+diff --git a/tests/src/Unit/FlysystemServiceProviderTest.php b/tests/src/Unit/FlysystemServiceProviderTest.php
+index a0c392cfce6933f628d26fa3c195307523ae3b19..7421415ccc05cc8bb5ba26de1cc6a08e1ccb1613 100644
+--- a/tests/src/Unit/FlysystemServiceProviderTest.php
++++ b/tests/src/Unit/FlysystemServiceProviderTest.php
 @@ -3,15 +3,14 @@
  namespace Drupal\Tests\flysystem\Unit;
  
@@ -585,16 +585,3 @@ index a0c392c..7421415 100644
    }
  
  }
-diff --git c/tests/src/Unit/InstallFunctionsTest.php w/tests/src/Unit/InstallFunctionsTest.php
-index dbe4887..58edf5d 100644
---- c/tests/src/Unit/InstallFunctionsTest.php
-+++ w/tests/src/Unit/InstallFunctionsTest.php
-@@ -7,7 +7,7 @@ use Drupal\Core\Site\Settings;
- use Drupal\flysystem\FlysystemFactory;
- use Drupal\Tests\UnitTestCase;
- use Symfony\Component\DependencyInjection\ContainerBuilder;
--use Codementality\FlysystemStreamWrapper;
-+use Codementality\FlysystemStreamWrapper\FlysystemStreamWrapper;
- 
- /**
-  * Tests flysystem.install functions.
