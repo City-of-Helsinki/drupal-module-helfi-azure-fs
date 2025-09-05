@@ -10,7 +10,7 @@
 * Make sure your instance is up and running on latest dev branch.
   * `git pull origin dev`
   * `make fresh`
-* Update the Helfi Platform config
+* Update the Helfi Azure FS module
   * `composer require drupal/helfi_azure_fs:dev-UHF-0000_insert_correct_branch`
 * Run `make drush-updb drush-cr`
 
