@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/flysystem": "^2.2",
+        "drupal/flysystem": "^2.3",
         "microsoft/azure-storage-blob": "^1.1"
     },
     "require-dev": {
@@ -13,13 +13,6 @@
         "drupal/coder": "^8.3"
     },
     "conflict": {
-        "drupal/core": "<10.3"
-    },
-    "extra": {
-        "patches": {
-            "drupal/flysystem": {
-                "https://www.drupal.org/i/3504144": "./public/modules/contrib/helfi_azure_fs/patches/3504144.patch"
-            }
-        }
+        "drupal/core": "<11.0"
     }
 }
