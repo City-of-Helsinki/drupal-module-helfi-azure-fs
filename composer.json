@@ -6,7 +6,7 @@
     "minimum-stability": "dev",
     "require": {
         "drupal/flysystem": "^2.2",
-        "azure-oss/storage-blob-flysystem": "^1.2"
+        "azure-oss/storage": "^1.5"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
