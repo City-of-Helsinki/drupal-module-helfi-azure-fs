@@ -86,7 +86,7 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
     $client = BlobServiceClient::fromConnectionString($connectionString)
       ->getContainerClient($this->configuration['container']);
 
-    return new AzureBlobStorageAdapter($client, $this->configuration['container']);
+    return new AzureBlobStorageAdapter($client);
   }
 
   /**
