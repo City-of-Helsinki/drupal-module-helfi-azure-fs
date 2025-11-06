@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\helfi_azure_fs;
+namespace Drupal\helfi_azure_fs\Flysystem\Adapter;
 
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\BlobNotFoundException;
