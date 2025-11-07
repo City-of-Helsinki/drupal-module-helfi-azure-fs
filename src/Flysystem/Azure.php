@@ -12,7 +12,6 @@ use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use function PHPUnit\Framework\returnValue;
 
 /**
  * Drupal plugin for the "Azure" Flysystem adapter.

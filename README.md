@@ -57,6 +57,16 @@ $settings['is_azure'] = TRUE;
 
 The correct values can be found by running `printenv | grep BLOB` inside a OpenShift Drupal pod.
 
+#### Running tests on local
+
+Running tests on local require a couple of `FLYSYSTEM_` environment variables:
+
+```bash
+export FLYSYSTEM_AZURE_ACCOUNT_KEY=[ insert blob storage sas token here ]
+export FLYSYSTEM_AZURE_ACCOUNT_NAME=[ insert blob storage account here ]
+export FLYSYSTEM_AZURE_CONTAINER_NAME=[ insert container name here ]
+```
+
 ## Contact
 
 Slack: #helfi-drupal (http://helsinkicity.slack.com/)
