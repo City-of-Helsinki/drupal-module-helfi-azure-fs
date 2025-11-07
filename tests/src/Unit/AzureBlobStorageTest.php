@@ -18,13 +18,6 @@ use Psr\Log\LoggerInterface;
 class AzureBlobStorageTest extends UnitTestCase {
 
   /**
-   * The configuration.
-   *
-   * @var array
-   */
-  protected array $configuration = [];
-
-  /**
    * The file system.
    *
    * @var \League\Flysystem\Filesystem
@@ -32,21 +25,16 @@ class AzureBlobStorageTest extends UnitTestCase {
   protected Filesystem $filesystem;
 
   /**
-   * The blob storage adapter.
-   *
-   * @var \Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter
-   */
-  private AzureBlobStorageAdapter $adapter;
-
-  /**
    * {@inheritdoc}
    */
   protected function setUp(): void {
+    parent::setUp();
+
     $accountKey = getenv('FLYSYSTEM_AZURE_ACCOUNT_KEY');
     $accountName = getenv('FLYSYSTEM_AZURE_ACCOUNT_NAME');
     $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME');
 
-    $this->configuration = [
+    $configuration = [
       'container' => $container,
       'protocol' => 'https',
       'name' => $accountName,
@@ -54,11 +42,10 @@ class AzureBlobStorageTest extends UnitTestCase {
       'endpointSuffix' => 'core.windows.net',
 
     ];
-    $adapter = (new Azure($this->configuration, $this->prophesize(LoggerInterface::class)->reveal()))
+    $adapter = (new Azure($configuration, $this->prophesize(LoggerInterface::class)->reveal()))
       ->getAdapter();
     $this->filesystem = new Filesystem($adapter);
     $this->filesystem->getConfig()->set('disable_asserts', TRUE);
-    $this->adapter = $adapter;
   }
 
   /**
