@@ -6,6 +6,7 @@ namespace Drupal\helfi_azure_fs\Flysystem\Adapter;
 
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\BlobNotFoundException;
+use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
 use League\Flysystem\Adapter\AbstractAdapter;
@@ -135,12 +136,9 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
    * {@inheritdoc}
    */
   public function deleteDir($dirname): bool {
-
-    foreach ($this->listContents($dirname) as $file) {
-      if ($file['type'] === 'file') {
-        $this->client->getBlobClient($this->applyPathPrefix($file['path']))
-          ->delete();
-      }
+    foreach ($this->listContents($dirname, TRUE) as $file) {
+      $this->client->getBlobClient($this->applyPathPrefix($file['path']))
+        ->deleteIfExists();
     }
     return TRUE;
   }
@@ -162,7 +160,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
   /**
    * {@inheritdoc}
    */
-  public function read($path): array {
+  public function read($path): array|false {
     $response = $this->readStream($path);
 
     if (!isset($response['stream']) || !is_resource($response['stream'])) {
@@ -178,11 +176,16 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
   /**
    * {@inheritdoc}
    */
-  public function readStream($path): array|bool {
+  public function readStream($path): array|false {
     $location = $this->applyPathPrefix($path);
 
-    $response = $this->client->getBlobClient($location)
-      ->downloadStreaming();
+    try {
+      $response = $this->client->getBlobClient($location)
+        ->downloadStreaming();
+    }
+    catch (BlobNotFoundException) {
+      return FALSE;
+    }
 
     return $this->normalizeBlobProperties(
         $path,
@@ -191,23 +194,49 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
   }
 
   /**
-   * {@inheritdoc}
+   * Lists the directory content.
+   *
+   * @param string $directory
+   *   The directory to list content for.
+   * @param bool $recursive
+   *   Whether to loop recursively.
+   *
+   * @return \Generator<array>
+   *   The content list.
    */
-  public function listContents($directory = '', $recursive = FALSE): \Generator {
-    $prefix = $this->applyPathPrefix($directory);
-    $directories = [$prefix];
+  private function doListContents(string $directory, bool $recursive) : iterable {
+    $location = $this->applyPathPrefix($directory);
+
+    if (strlen($location) > 0) {
+      $location = rtrim($location, '/') . '/';
+    }
+
+    $directories = [$location];
 
     while (!empty($directories)) {
       $currentPrefix = array_shift($directories);
 
       foreach ($this->client->getBlobsByHierarchy($currentPrefix) as $item) {
-        yield $this->normalizeBlobProperties($this->applyPathPrefix($item->name), $item->properties);
-
-        if ($recursive) {
-          $directories[] = $item->name;
+        if ($item instanceof Blob) {
+          yield $this->normalizeBlobProperties($this->applyPathPrefix($item->name), $item->properties);
         }
+        else {
+          yield $this->normalizeBlobProperties($this->applyPathPrefix($item->name), NULL);
+
+          if ($recursive) {
+            $directories[] = $item->name;
+          }
+        }
+
       }
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function listContents($directory = '', $recursive = FALSE): array {
+    return iterator_to_array($this->doListContents($directory, $recursive));
   }
 
   /**
@@ -263,13 +292,13 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
    *
    * @param string $path
    *   The path.
-   * @param \AzureOss\Storage\Blob\Models\BlobProperties $properties
+   * @param null|\AzureOss\Storage\Blob\Models\BlobProperties $properties
    *   The properties.
    *
    * @return array
    *   The normalized properties.
    */
-  protected function normalizeBlobProperties(string $path, BlobProperties $properties): array {
+  protected function normalizeBlobProperties(string $path, ?BlobProperties $properties): array {
     $path = $this->removePathPrefix($path);
 
     if (str_ends_with($path, '/')) {

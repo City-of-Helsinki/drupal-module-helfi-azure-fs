@@ -12,6 +12,7 @@ use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use function PHPUnit\Framework\returnValue;
 
 /**
  * Drupal plugin for the "Azure" Flysystem adapter.
@@ -42,8 +43,8 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    *   The logger.
    */
   public function __construct(
-    private array $configuration,
-    private LoggerInterface $logger,
+    private readonly array $configuration,
+    private readonly LoggerInterface $logger,
   ) {
   }
 
@@ -61,6 +62,19 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    * {@inheritdoc}
    */
   public function getAdapter(): AzureBlobStorageAdapter {
+    $client = BlobServiceClient::fromConnectionString($this->getConnectionString())
+      ->getContainerClient($this->configuration['container']);
+
+    return new AzureBlobStorageAdapter($client);
+  }
+
+  /**
+   * Gets the connection string.
+   *
+   * @return string
+   *   The connection string.
+   */
+  public function getConnectionString(): string {
     if (!empty($this->configuration['token'])) {
       $values = [
         'BlobEndpoint' => vsprintf('%s://%s.blob.%s', [
@@ -83,10 +97,7 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
     foreach ($values as $key => $value) {
       $connectionString .= sprintf('%s=%s;', $key, $value);
     }
-    $client = BlobServiceClient::fromConnectionString($connectionString)
-      ->getContainerClient($this->configuration['container']);
-
-    return new AzureBlobStorageAdapter($client);
+    return $connectionString;
   }
 
   /**
