@@ -32,6 +32,10 @@ class AzureBlobStorageTest extends UnitTestCase {
     $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
     $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME') ?: 'etusivu64e62test';
 
+    if (!$connectionString) {
+      $this
+        ->fail('You must define FLYSYSTEM_AZURE_CONNECTION_STRING environment variable. See README.md.');
+    }
     $configuration = [
       'container' => $container,
       'connectionString' => $connectionString,
