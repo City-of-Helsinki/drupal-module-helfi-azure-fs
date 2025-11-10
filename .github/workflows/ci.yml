@@ -14,7 +14,3 @@ jobs:
       php_version: ${{ matrix.php-versions }}
     secrets:
       sonarcloud_token: ${{ secrets.SONAR_TOKEN }}
-    env:
-      FLYSYSTEM_AZURE_ACCOUNT_KEY: ${{ secrets.FLYSYSTEM_AZURE_ACCOUNT_KEY }}
-      FLYSYSTEM_AZURE_ACCOUNT_NAME: ${{ secrets.FLYSYSTEM_AZURE_ACCOUNT_NAME }}
-      FLYSYSTEM_AZURE_CONTAINER_NAME: ${{ secrets.FLYSYSTEM_AZURE_CONTAINER_NAME }}

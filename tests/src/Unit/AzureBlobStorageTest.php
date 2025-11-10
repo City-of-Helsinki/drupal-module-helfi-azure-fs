@@ -30,16 +30,12 @@ class AzureBlobStorageTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
 
-    $accountKey = getenv('FLYSYSTEM_AZURE_ACCOUNT_KEY');
-    $accountName = getenv('FLYSYSTEM_AZURE_ACCOUNT_NAME');
-    $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME');
+    $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
+    $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME') ?: 'etusivu64e62test';
 
     $configuration = [
       'container' => $container,
-      'protocol' => 'https',
-      'name' => $accountName,
-      'token' => $accountKey,
-      'endpointSuffix' => 'core.windows.net',
+      'connectionString' => $connectionString,
 
     ];
     $adapter = (new Azure($configuration, $this->prophesize(LoggerInterface::class)->reveal()))

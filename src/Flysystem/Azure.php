@@ -74,6 +74,10 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    *   The connection string.
    */
   public function getConnectionString(): string {
+    if (!empty($this->configuration['connectionString'])) {
+      return $this->configuration['connectionString'];
+    }
+
     if (!empty($this->configuration['token'])) {
       $values = [
         'BlobEndpoint' => vsprintf('%s://%s.blob.%s', [

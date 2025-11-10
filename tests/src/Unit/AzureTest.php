@@ -102,6 +102,13 @@ class AzureTest extends UnitTestCase {
    */
   public function connectionStringData() : array {
     return [
+      // Test with connection string.
+      [
+        [
+          'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
+        ],
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
+      ],
       // Test with regular account key.
       [
         [
