@@ -14,3 +14,4 @@ jobs:
       php_version: ${{ matrix.php-versions }}
     secrets:
       sonarcloud_token: ${{ secrets.SONAR_TOKEN }}
+      flysystem_azure_connection_string: ${{ secrets.FLYSYSTEM_AZURE_CONNECTION_STRING }}

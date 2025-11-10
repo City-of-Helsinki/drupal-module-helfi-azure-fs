@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
-
-use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\helfi_azure_fs\Flysystem\Azure;
 use Drupal\Tests\UnitTestCase;
 use League\Flysystem\Filesystem;
