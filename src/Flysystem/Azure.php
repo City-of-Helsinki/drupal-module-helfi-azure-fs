@@ -4,18 +4,12 @@ declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs\Flysystem;
 
+use AzureOss\Storage\Blob\BlobServiceClient;
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
-use MicrosoftAzure\Storage\Blob\BlobRestProxy;
-use MicrosoftAzure\Storage\Blob\Internal\BlobResources;
-use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
-use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
-use MicrosoftAzure\Storage\Common\Internal\Middlewares\CommonRequestMiddleware;
-use MicrosoftAzure\Storage\Common\Internal\Resources;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -33,13 +27,6 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
   }
 
   /**
-   * The Client proxy.
-   *
-   * @var \MicrosoftAzure\Storage\Blob\BlobRestProxy
-   */
-  protected BlobRestProxy $client;
-
-  /**
    * List of urls already requested, indexed by uri.
    *
    * @var string[]
@@ -53,13 +40,10 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    *   Plugin configuration array.
    * @param \Psr\Log\LoggerInterface $logger
    *   The logger.
-   * @param \Drupal\Core\File\FileUrlGeneratorInterface $fileUrlGenerator
-   *   The file url generator service.
    */
   public function __construct(
-    private array $configuration,
-    private LoggerInterface $logger,
-    private FileUrlGeneratorInterface $fileUrlGenerator,
+    private readonly array $configuration,
+    private readonly LoggerInterface $logger,
   ) {
   }
 
@@ -67,10 +51,9 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): self {
-    return new static(
+    return new self(
       $configuration,
       $container->get('logger.factory')->get('flysystem_azure'),
-      $container->get('file_url_generator')
     );
   }
 
@@ -78,61 +61,46 @@ final class Azure implements FlysystemPluginInterface, ContainerFactoryPluginInt
    * {@inheritdoc}
    */
   public function getAdapter(): AzureBlobStorageAdapter {
-    return new AzureBlobStorageAdapter($this->getClient(), $this->configuration['container']);
+    $client = BlobServiceClient::fromConnectionString($this->getConnectionString())
+      ->getContainerClient($this->configuration['container']);
+
+    return new AzureBlobStorageAdapter($client);
   }
 
   /**
-   * Gets the blob storage URI.
-   *
-   * @param string|null $suffix
-   *   The URI suffix.
+   * Gets the connection string.
    *
    * @return string
-   *   The blob storage uri.
+   *   The connection string.
    */
-  private function getBlobUri(?string $suffix = NULL) : string {
-    return vsprintf('%s://%s%s.blob.%s', [
-      $this->configuration['protocol'],
-      $this->configuration['name'],
-      $suffix ?: '',
-      $this->configuration['endpointSuffix'],
-    ]);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getClient(): BlobRestProxy {
-    if (!isset($this->client)) {
-      // Construct the client manually to avoid calling substr with null
-      // $haystack parameter.
-      // @see https://github.com/Azure/azure-storage-php/issues/347
-      $wrapper = new BlobRestProxy(
-        $this->getBlobUri(),
-        $this->getBlobUri(Resources::SECONDARY_STRING),
-        ''
-      );
-
-      if (!empty($this->configuration['token'])) {
-        $authScheme = new SharedAccessSignatureAuthScheme(
-          $this->configuration['token']
-        );
-      }
-      else {
-        $authScheme = new SharedKeyAuthScheme(
-          $this->configuration['name'],
-          $this->configuration['key'],
-        );
-      }
-      $commonRequestMiddleware = new CommonRequestMiddleware(
-        $authScheme,
-        BlobResources::STORAGE_API_LATEST_VERSION,
-        BlobResources::BLOB_SDK_VERSION
-      );
-      $wrapper->pushMiddleware($commonRequestMiddleware);
-      $this->client = $wrapper;
+  public function getConnectionString(): string {
+    if (!empty($this->configuration['connectionString'])) {
+      return $this->configuration['connectionString'];
     }
-    return $this->client;
+
+    if (!empty($this->configuration['token'])) {
+      $values = [
+        'BlobEndpoint' => vsprintf('%s://%s.blob.%s', [
+          $this->configuration['protocol'],
+          $this->configuration['name'],
+          $this->configuration['endpointSuffix'],
+        ]),
+        'SharedAccessSignature' => $this->configuration['token'],
+      ];
+    }
+    else {
+      $values = [
+        'DefaultEndpointsProtocol' => $this->configuration['protocol'],
+        'AccountName' => $this->configuration['name'],
+        'EndpointSuffix' => $this->configuration['endpointSuffix'],
+        'AccountKey' => $this->configuration['key'],
+      ];
+    }
+    $connectionString = '';
+    foreach ($values as $key => $value) {
+      $connectionString .= sprintf('%s=%s;', $key, $value);
+    }
+    return $connectionString;
   }
 
   /**

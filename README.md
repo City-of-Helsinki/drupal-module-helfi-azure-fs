@@ -57,6 +57,15 @@ $settings['is_azure'] = TRUE;
 
 The correct values can be found by running `printenv | grep BLOB` inside a OpenShift Drupal pod.
 
+#### Running tests on local
+
+Running tests on local require the `FLYSYSTEM_AZURE_CONNECTION_STRING` environment variable to be set:
+
+```bash
+export FLYSYSTEM_AZURE_CONNECTION_STRING=[ insert blob storage connection string here ]
+```
+You can find this value by setting a breakpoint to `\Drupal\helfi_azure_fs\Flysystem\Azure::getConnectionString()` and uploading a file via the Drupal UI.
+
 ## Contact
 
 Slack: #helfi-drupal (http://helsinkicity.slack.com/)

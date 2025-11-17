@@ -9,10 +9,9 @@ use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Logger\LoggerChannelFactory;
 use Drupal\Core\Routing\UrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\Flysystem\Azure;
-use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedAccessSignatureAuthScheme;
-use MicrosoftAzure\Storage\Common\Internal\Authentication\SharedKeyAuthScheme;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\Log\LoggerInterface;
@@ -82,24 +81,17 @@ class AzureTest extends UnitTestCase {
   }
 
   /**
-   * Tests connection string.
+   * Tests getAdapter connection string.
    *
    * @dataProvider connectionStringData
    */
-  public function testGetClient(array $configuration, array $expected) : void {
-    $fileUrlGenerator = $this->prophesize(FileUrlGeneratorInterface::class);
-    $logger = $this->prophesize(LoggerInterface::class);
-    $azure = new Azure($configuration, $logger->reveal(), $fileUrlGenerator->reveal());
-    $client = $azure->getClient();
-    $this->assertEquals($expected['primaryUri'], (string) $client->getPsrPrimaryUri());
-    $this->assertEquals($expected['secondaryUri'], (string) $client->getPsrSecondaryUri());
-    $middleware = $client->getMiddlewares()[0];
-    $reflectionClass = new \ReflectionClass($middleware);
-    $scheme = $reflectionClass
-      ->getProperty('authenticationScheme');
-    $scheme->setAccessible(TRUE);
+  public function testGetAdapter(array $configuration, string $expected) : void {
+    $configuration += ['container' => 'test'];
 
-    $this->assertInstanceOf($expected['authenticationScheme'], $scheme->getValue($middleware));
+    $logger = $this->prophesize(LoggerInterface::class);
+    $azure = new Azure($configuration, $logger->reveal());
+    $this->assertEquals($expected, $azure->getConnectionString());
+    $this->assertInstanceOf(AzureBlobStorageAdapter::class, $azure->getAdapter());
   }
 
   /**
@@ -110,6 +102,13 @@ class AzureTest extends UnitTestCase {
    */
   public function connectionStringData() : array {
     return [
+      // Test with connection string.
+      [
+        [
+          'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
+        ],
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
+      ],
       // Test with regular account key.
       [
         [
@@ -118,11 +117,7 @@ class AzureTest extends UnitTestCase {
           'endpointSuffix' => 'core.windows.net',
           'key' => '123',
         ],
-        [
-          'primaryUri' => 'https://test.blob.core.windows.net/',
-          'secondaryUri' => 'https://test-secondary.blob.core.windows.net/',
-          'authenticationScheme' => SharedKeyAuthScheme::class,
-        ],
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
       ],
       // Test with SAS token.
       [
@@ -132,11 +127,7 @@ class AzureTest extends UnitTestCase {
           'endpointSuffix' => 'core.windows.net',
           'token' => '321',
         ],
-        [
-          'primaryUri' => 'https://test.blob.core.windows.net/',
-          'secondaryUri' => 'https://test-secondary.blob.core.windows.net/',
-          'authenticationScheme' => SharedAccessSignatureAuthScheme::class,
-        ],
+        'BlobEndpoint=https://test.blob.core.windows.net;SharedAccessSignature=321;',
       ],
       // Make sure connection string prefers SAS token when both the key and
       // token is set.
@@ -148,11 +139,7 @@ class AzureTest extends UnitTestCase {
           'key' => '123',
           'token' => '321',
         ],
-        [
-          'primaryUri' => 'https://test.blob.core.windows.net/',
-          'secondaryUri' => 'https://test-secondary.blob.core.windows.net/',
-          'authenticationScheme' => SharedAccessSignatureAuthScheme::class,
-        ],
+        'BlobEndpoint=https://test.blob.core.windows.net;SharedAccessSignature=321;',
       ],
       // Make sure connection string fallbacks to key connection when SAS
       // token is empty.
@@ -164,11 +151,7 @@ class AzureTest extends UnitTestCase {
           'key' => '123',
           'token' => '',
         ],
-        [
-          'primaryUri' => 'https://test.blob.core.windows.net/',
-          'secondaryUri' => 'https://test-secondary.blob.core.windows.net/',
-          'authenticationScheme' => SharedKeyAuthScheme::class,
-        ],
+        'DefaultEndpointsProtocol=https;AccountName=test;EndpointSuffix=core.windows.net;AccountKey=123;',
       ],
     ];
   }
