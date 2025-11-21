@@ -59,12 +59,16 @@ The correct values can be found by running `printenv | grep BLOB` inside a OpenS
 
 #### Running tests on local
 
-Running tests on local require the `FLYSYSTEM_AZURE_CONNECTION_STRING` environment variable to be set:
+Running tests on local require a `/app/.secrets.json` file:
 
-```bash
-export FLYSYSTEM_AZURE_CONNECTION_STRING=[ insert blob storage connection string here ]
+```json
+{
+  "flysystem_azure_connection_string": "BlobEndpoint=https://stplattadevtest.blob.core.windows.net;SharedAccessSignature=[ insert sas token here ];",
+  "flysystem_azure_container_name": "[ container name ]"
+}
 ```
-You can find this value by setting a breakpoint to `\Drupal\helfi_azure_fs\Flysystem\Azure::getConnectionString()` and uploading a file via the Drupal UI.
+
+You can find these values from your `local.settings.php` file.
 
 ## Contact
 

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Drupal\helfi_azure_fs\Flysystem\Adapter;
 
 use AzureOss\Storage\Blob\BlobContainerClient;
-use AzureOss\Storage\Blob\Exceptions\BlobNotFoundException;
+use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
+use GuzzleHttp\Exception\GuzzleException;
 use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use League\Flysystem\Config;
@@ -48,14 +49,19 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
   /**
    * {@inheritdoc}
    */
-  public function write($path, $contents, Config $config): array {
-    return $this->upload($path, $contents) + compact('contents');
+  public function write($path, $contents, Config $config): array|false {
+    $data = $this->upload($path, $contents);
+
+    if (!$data) {
+      return FALSE;
+    }
+    return $data + compact('contents');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function writeStream($path, $resource, Config $config): array {
+  public function writeStream($path, $resource, Config $config): array|false {
     return $this->upload($path, $resource);
   }
 
@@ -67,36 +73,41 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
    * @param string|resource $contents
    *   The contents.
    *
-   * @return array
+   * @return array|false
    *   The metadata.
    */
-  protected function upload(string $path, mixed $contents): array {
+  protected function upload(string $path, mixed $contents): array|false {
     $destination = $this->applyPathPrefix($path);
     $options = new UploadBlobOptions(
       contentType: Util::guessMimeType($path, $contents),
     );
 
-    $this->client->getBlobClient($destination)
-      ->upload($contents, $options);
+    try {
+      $this->client->getBlobClient($destination)
+        ->upload($contents, $options);
 
-    return [
-      'path' => $path,
-      'dirname' => Util::dirname($path),
-      'type' => 'file',
-    ];
+      return [
+        'path' => $path,
+        'dirname' => Util::dirname($path),
+        'type' => 'file',
+      ];
+    }
+    catch (BlobStorageException | GuzzleException) {
+    }
+    return FALSE;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function update($path, $contents, Config $config): array {
-    return $this->upload($path, $contents) + compact('contents');
+  public function update($path, $contents, Config $config): array|false {
+    return $this->write($path, $contents, $config);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function updateStream($path, $resource, Config $config): array {
+  public function updateStream($path, $resource, Config $config): array|false {
     return $this->upload($path, $resource);
   }
 
@@ -117,18 +128,27 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
     $sourceBlobClient = $this->client->getBlobClient($source);
     $targetBlobClient = $this->client->getBlobClient($destination);
 
-    $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
+    try {
+      $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
 
-    return TRUE;
+      return TRUE;
+    }
+    catch (BlobStorageException) {
+    }
+    return FALSE;
   }
 
   /**
    * {@inheritdoc}
    */
   public function delete($path): bool {
-    $this->client->getBlobClient($this->applyPathPrefix($path))
-      ->deleteIfExists();
-
+    try {
+      $this->client->getBlobClient($this->applyPathPrefix($path))
+        ->deleteIfExists();
+    }
+    catch (BlobStorageException | GuzzleException) {
+      return FALSE;
+    }
     return TRUE;
   }
 
@@ -183,7 +203,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
       $response = $this->client->getBlobClient($location)
         ->downloadStreaming();
     }
-    catch (BlobNotFoundException) {
+    catch (BlobStorageException | GuzzleException) {
       return FALSE;
     }
 
@@ -236,7 +256,12 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
    * {@inheritdoc}
    */
   public function listContents($directory = '', $recursive = FALSE): array {
-    return iterator_to_array($this->doListContents($directory, $recursive));
+    try {
+      return iterator_to_array($this->doListContents($directory, $recursive));
+    }
+    catch (BlobStorageException | GuzzleException) {
+    }
+    return [];
   }
 
   /**
@@ -253,7 +278,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
         $properties,
       );
     }
-    catch (BlobNotFoundException) {
+    catch (BlobStorageException | GuzzleException) {
     }
 
     if (in_array($path, ['css', 'js'])) {

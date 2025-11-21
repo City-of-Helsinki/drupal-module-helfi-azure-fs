@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
 use Drupal\helfi_azure_fs\Flysystem\Azure;
+use Drupal\Tests\helfi_api_base\Traits\SecretsTrait;
 use Drupal\Tests\UnitTestCase;
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;
@@ -15,6 +16,8 @@ use Psr\Log\LoggerInterface;
  * @group helfi_azure_fs
  */
 class AzureBlobStorageTest extends UnitTestCase {
+
+  use SecretsTrait;
 
   /**
    * The file system.
@@ -29,12 +32,12 @@ class AzureBlobStorageTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
 
-    $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
-    $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME') ?: 'etusivu64e62test';
+    $connectionString = $this->getSecret('flysystem_azure_connection_string');
+    $container = $this->getSecret('flysystem_azure_container_name');
 
-    if (!$connectionString) {
+    if (!$connectionString || !$container) {
       $this
-        ->fail('You must define FLYSYSTEM_AZURE_CONNECTION_STRING environment variable. See README.md.');
+        ->fail('You must define "flysystem_azure_connection_string" and "flysystem_azure_container_name" secrets. See README.md.');
     }
     $configuration = [
       'container' => $container,
@@ -48,9 +51,33 @@ class AzureBlobStorageTest extends UnitTestCase {
   }
 
   /**
+   * Constructs a Filesystem object that throws guzzle exception.
+   *
+   * @return \League\Flysystem\Filesystem
+   *   The filesystem.
+   */
+  private function getSutWithException(): Filesystem {
+    $configuration = [
+      'container' => 'invalid',
+      // @see \AzureOss\Storage\Common\Helpers\ConnectionStringHelper
+      'connectionString' => 'UseDevelopmentStorage=true',
+    ];
+    $adapter = (new Azure($configuration, $this->prophesize(LoggerInterface::class)->reveal()))
+      ->getAdapter();
+
+    $filesystem = new Filesystem($adapter);
+    $filesystem->getConfig()->set('disable_asserts', TRUE);
+
+    return $filesystem;
+  }
+
+  /**
    * Tests write and read.
    */
   public function testWritingAndReadingFile(): void {
+    // Make sure write(). exits gracefully when request fails.
+    $this->assertFalse($this->getSutWithException()->write('filename.txt', 'contents'));
+
     $contents = 'with contents';
     $filename = 'test/a_file.txt';
     $this->assertTrue($this->filesystem->write($filename, $contents));
@@ -63,6 +90,8 @@ class AzureBlobStorageTest extends UnitTestCase {
    * Tests read with non-existing file.
    */
   public function testReadErrors(): void {
+    // Make sure read(). exits gracefully when request fails.
+    $this->assertFalse($this->getSutWithException()->read('filename.txt'));
     $this->assertFalse($this->filesystem->read('not-existing.txt'));
   }
 
@@ -110,6 +139,9 @@ class AzureBlobStorageTest extends UnitTestCase {
    * Make sure we can delete files that don't exist.
    */
   public function testDeletingFilesThatDontExist(): void {
+    // Make sure http error fails gracefully.
+    $this->assertFalse($this->getSutWithException()->delete('test/file.txt'));
+
     $this->assertTrue($this->filesystem->delete('test/non-existent-filename.txt'));
   }
 
@@ -134,6 +166,9 @@ class AzureBlobStorageTest extends UnitTestCase {
    * Tests listContents().
    */
   public function testListingDirectory(): void {
+    // Make sure listContents() fails gracefully on http error.
+    $this->assertEmpty($this->getSutWithException()->listContents('test'));
+
     $this->filesystem->write('test/path/to/file.txt', 'a file');
     $this->filesystem->write('test/path/to/another/file.txt', 'a file');
     $this->assertCount(2, $this->filesystem->listContents('test/path/to'));
@@ -149,6 +184,9 @@ class AzureBlobStorageTest extends UnitTestCase {
    * Test metadata getters.
    */
   public function testMetadataGetters(): void {
+    // Make sure getMetadata() fails gracefully on http error.
+    $this->assertFalse($this->getSutWithException()->getMetadata('test/file.txt'));
+
     $filename = 'test/file.txt';
     $this->filesystem->write($filename, 'contents');
     $this->assertIsInt($this->filesystem->getTimestamp($filename));
@@ -158,6 +196,10 @@ class AzureBlobStorageTest extends UnitTestCase {
 
     $this->filesystem->delete($filename);
     $this->assertFalse($this->filesystem->has($filename));
+
+    foreach (['js', 'css'] as $dir) {
+      $this->assertEquals(['type' => 'dir', 'path' => $dir], $this->filesystem->getMetadata($dir));
+    }
   }
 
   /**
