@@ -14,4 +14,4 @@ jobs:
       php_version: ${{ matrix.php-versions }}
     secrets:
       sonarcloud_token: ${{ secrets.SONAR_TOKEN }}
-      app_secrets: ${{ secrets.APP_SECRETS }}
+      base64_app_secrets: ${{ secrets.APP_SECRETS }}
