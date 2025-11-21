@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
 use Drupal\helfi_azure_fs\Flysystem\Azure;
+use Drupal\Tests\helfi_api_base\Traits\SecretsTrait;
 use Drupal\Tests\UnitTestCase;
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;
@@ -15,6 +16,8 @@ use Psr\Log\LoggerInterface;
  * @group helfi_azure_fs
  */
 class AzureBlobStorageTest extends UnitTestCase {
+
+  use SecretsTrait;
 
   /**
    * The file system.
@@ -29,12 +32,12 @@ class AzureBlobStorageTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
 
-    $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
-    $container = getenv('FLYSYSTEM_AZURE_CONTAINER_NAME') ?: 'etusivu64e62test';
+    $connectionString = $this->getSecret('flysystem_azure_connection_string');
+    $container = $this->getSecret('flysystem_azure_container_name');
 
-    if (!$connectionString) {
+    if (!$connectionString || !$container) {
       $this
-        ->fail('You must define FLYSYSTEM_AZURE_CONNECTION_STRING environment variable. See README.md.');
+        ->fail('You must define "flysystem_azure_connection_string" and "flysystem_azure_container_name" secrets. See README.md.');
     }
     $configuration = [
       'container' => $container,
