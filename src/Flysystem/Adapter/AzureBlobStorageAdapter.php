@@ -9,6 +9,7 @@ use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
+use GuzzleHttp\Exception\GuzzleException;
 use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use League\Flysystem\Config;
@@ -91,7 +92,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
         'type' => 'file',
       ];
     }
-    catch (BlobStorageException) {
+    catch (BlobStorageException | GuzzleException) {
     }
     return FALSE;
   }
@@ -145,7 +146,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
       $this->client->getBlobClient($this->applyPathPrefix($path))
         ->deleteIfExists();
     }
-    catch (BlobStorageException) {
+    catch (BlobStorageException | GuzzleException) {
       return FALSE;
     }
     return TRUE;
@@ -202,7 +203,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
       $response = $this->client->getBlobClient($location)
         ->downloadStreaming();
     }
-    catch (BlobStorageException) {
+    catch (BlobStorageException | GuzzleException) {
       return FALSE;
     }
 
@@ -258,7 +259,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
     try {
       return iterator_to_array($this->doListContents($directory, $recursive));
     }
-    catch (BlobStorageException) {
+    catch (BlobStorageException | GuzzleException) {
     }
     return [];
   }
@@ -277,7 +278,7 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
         $properties,
       );
     }
-    catch (BlobStorageException) {
+    catch (BlobStorageException | GuzzleException) {
     }
 
     if (in_array($path, ['css', 'js'])) {
