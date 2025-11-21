@@ -9,9 +9,9 @@ jobs:
     strategy:
       matrix:
         php-versions: ['8.4']
-    uses: city-of-helsinki/drupal-gh-actions/.github/workflows/module-tests.yml@main
+    uses: city-of-helsinki/drupal-gh-actions/.github/workflows/module-tests.yml@UHF-11502
     with:
       php_version: ${{ matrix.php-versions }}
     secrets:
       sonarcloud_token: ${{ secrets.SONAR_TOKEN }}
-      flysystem_azure_connection_string: ${{ secrets.FLYSYSTEM_AZURE_CONNECTION_STRING }}
+      app_secrets: '{"flysystem_azure_connection_string": "${{ secrets.FLYSYSTEM_AZURE_CONNECTION_STRING }}"}'
