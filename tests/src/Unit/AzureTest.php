@@ -12,6 +12,7 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\Flysystem\Azure;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Psr\Log\LoggerInterface;
@@ -82,9 +83,8 @@ class AzureTest extends UnitTestCase {
 
   /**
    * Tests getAdapter connection string.
-   *
-   * @dataProvider connectionStringData
    */
+  #[DataProvider(methodName: 'connectionStringData')]
   public function testGetAdapter(array $configuration, string $expected) : void {
     $configuration += ['container' => 'test'];
 
@@ -100,7 +100,7 @@ class AzureTest extends UnitTestCase {
    * @return array
    *   The data.
    */
-  public function connectionStringData() : array {
+  public static function connectionStringData() : array {
     return [
       // Test with connection string.
       [
