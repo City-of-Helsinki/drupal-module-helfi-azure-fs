@@ -11,6 +11,7 @@ use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use org\bovigo\vfs\vfsStream;
@@ -27,33 +28,33 @@ class AzureFileSystemTest extends UnitTestCase {
   /**
    * Mocks stream wrapper manager.
    *
-   * @param bool $expectedValue
+   * @param string|false $expectedValue
    *   The expected return value.
    *
    * @return \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface
    *   The stream wrapper mock.
    */
-  private function getStreamWrapperManagerMock(bool $expectedValue) : StreamWrapperManagerInterface {
+  private function getStreamWrapperManagerMock(false|string $expectedValue) : StreamWrapperManagerInterface {
     return new class($expectedValue) extends StreamWrapperManager {
 
       // phpcs:ignore
-      private static bool $expectedReturnValue;
+      private static string|bool $expectedSchemeReturnValue;
 
       /**
        * Constructs a new instance.
        *
-       * @param bool $value
+       * @param false|string $value
        *   The value.
        */
-      public function __construct(bool $value) {
-        static::$expectedReturnValue = $value;
+      public function __construct(false|string $value) {
+        static::$expectedSchemeReturnValue = $value;
       }
 
       /**
        * {@inheritdoc}
        */
-      public static function getScheme($uri) {
-        return static::$expectedReturnValue;
+      public static function getScheme($uri): string|false {
+        return static::$expectedSchemeReturnValue;
       }
 
     };
@@ -116,9 +117,8 @@ class AzureFileSystemTest extends UnitTestCase {
 
   /**
    * Tests fallback operation.
-   *
-   * @dataProvider chmodFolderData
    */
+  #[DataProvider(methodName: 'chmodFolderData')]
   public function testSkipOperationsFallback(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -139,7 +139,7 @@ class AzureFileSystemTest extends UnitTestCase {
    * @return array[]
    *   The data.
    */
-  public function chmodFolderData() : array {
+  public static function chmodFolderData() : array {
     return [
       [
         ['test.txt' => 'asdf'],
@@ -154,9 +154,8 @@ class AzureFileSystemTest extends UnitTestCase {
 
   /**
    * Tests mkdir with skipFsOperations.
-   *
-   * @dataProvider chmodFolderData
    */
+  #[DataProvider(methodName: 'chmodFolderData')]
   public function testMkdirSkipFsOperations(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -175,7 +174,8 @@ class AzureFileSystemTest extends UnitTestCase {
    * Tests mkdir with scheme.
    */
   public function testMkdirWithScheme() : void {
-    $streamWrapperManager = $this->getStreamWrapperManagerMock(TRUE);
+    vfsStream::setup('dir');
+    $streamWrapperManager = $this->getStreamWrapperManagerMock('vfs');
     $uri = 'vfs://dir/subdir';
     $decorated = $this->prophesize(FileSystemInterface::class);
     $decorated->mkdir($uri, NULL, FALSE, NULL)

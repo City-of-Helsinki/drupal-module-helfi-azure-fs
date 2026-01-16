@@ -81,7 +81,7 @@ class TransliterateFilesCommandsTest extends FieldKernelTestBase {
       $files = $fileStorage->loadByProperties(['uri' => $expected]);
       $this->assertCount(1, $files);
       $file = reset($files);
-      $this->assertEquals($fileSystem->basename($expected), $file->getFilename());
+      $this->assertEquals(basename($expected), $file->getFilename());
     }
   }
 
