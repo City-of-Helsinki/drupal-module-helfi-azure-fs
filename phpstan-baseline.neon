@@ -1,0 +1,176 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Function helfi_azure_fs_install\\(\\) has parameter \\$is_syncing with no type specified\\.$#"
+			count: 1
+			path: helfi_azure_fs.install
+
+		-
+			message: "#^Function helfi_azure_fs_entity_field_storage_info_alter\\(\\) has parameter \\$fields with no type specified\\.$#"
+			count: 1
+			path: helfi_azure_fs.module
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Drush\\\\Commands\\\\TransliterateFilesCommands\\:\\:processEntityType\\(\\) has parameter \\$fields with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Drush/Commands/TransliterateFilesCommands.php
+
+		-
+			message: "#^Parameter \\#1 \\$entity of method Drupal\\\\helfi_azure_fs\\\\Drush\\\\Commands\\\\TransliterateFilesCommands\\:\\:processFieldLinks\\(\\) expects Drupal\\\\Core\\\\Entity\\\\ContentEntityInterface, Drupal\\\\Core\\\\Entity\\\\TranslatableInterface given\\.$#"
+			count: 1
+			path: src/Drush/Commands/TransliterateFilesCommands.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:createDir\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:doListContents\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:getMetadata\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:getMimetype\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:getSize\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:getTimestamp\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:listContents\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:normalizeBlobProperties\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:read\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:readStream\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:update\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:updateStream\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:upload\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:write\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Adapter\\\\AzureBlobStorageAdapter\\:\\:writeStream\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Adapter/AzureBlobStorageAdapter.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Azure\\:\\:__construct\\(\\) has parameter \\$configuration with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Azure.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Azure\\:\\:create\\(\\) has parameter \\$configuration with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Azure.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Azure\\:\\:ensure\\(\\) has parameter \\$force with no type specified\\.$#"
+			count: 1
+			path: src/Flysystem/Azure.php
+
+		-
+			message: "#^Method Drupal\\\\helfi_azure_fs\\\\Flysystem\\\\Azure\\:\\:ensure\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Flysystem/Azure.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$uri\\.$#"
+			count: 1
+			path: tests/src/Kernel/FlysystemRoutesTest.php
+
+		-
+			message: "#^Cannot access offset 'ctime' on array\\{0\\: int, 1\\: int, 2\\: int, 3\\: int, 4\\: int, 5\\: int, 6\\: int, 7\\: int, \\.\\.\\.\\}\\|false\\.$#"
+			count: 1
+			path: tests/src/Kernel/FlysystemRoutesTest.php
+
+		-
+			message: "#^Cannot access offset 'size' on array\\{0\\: int, 1\\: int, 2\\: int, 3\\: int, 4\\: int, 5\\: int, 6\\: int, 7\\: int, \\.\\.\\.\\}\\|false\\.$#"
+			count: 1
+			path: tests/src/Kernel/FlysystemRoutesTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$stream of function fstat expects resource, resource\\|false given\\.$#"
+			count: 1
+			path: tests/src/Kernel/FlysystemRoutesTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Kernel\\\\StorageInfoAlterTest\\:\\:register\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: tests/src/Kernel/StorageInfoAlterTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureFileSystemTest\\:\\:chmodFolderData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureFileSystemTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureFileSystemTest\\:\\:testChmodSkipFsOperations\\(\\) has parameter \\$structure with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureFileSystemTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureFileSystemTest\\:\\:testMkdirSkipFsOperations\\(\\) has parameter \\$structure with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureFileSystemTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureFileSystemTest\\:\\:testSkipOperationsFallback\\(\\) has parameter \\$structure with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureFileSystemTest.php
+
+		-
+			message: "#^Method class@anonymous/tests/src/Unit/AzureFileSystemTest\\.php\\:38\\:\\:getScheme\\(\\) should return string\\|false but returns bool\\|string\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureFileSystemTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureTest\\:\\:connectionStringData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\helfi_azure_fs\\\\Unit\\\\AzureTest\\:\\:testGetAdapter\\(\\) has parameter \\$configuration with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/src/Unit/AzureTest.php
