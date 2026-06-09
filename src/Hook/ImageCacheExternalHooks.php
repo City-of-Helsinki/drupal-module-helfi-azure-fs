@@ -10,7 +10,7 @@ use Drupal\Core\Hook\Attribute\Hook;
 use Symfony\Component\DependencyInjection\Attribute\AutowireServiceClosure;
 
 /**
- * Provides hooks for 'imagecache_external' module.
+ * Provides hooks for 'imagecach ternal' module.
  */
 final class ImageCacheExternalHooks {
 
