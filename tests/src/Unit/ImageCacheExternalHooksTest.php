@@ -42,7 +42,7 @@ class ImageCacheExternalHooksTest extends UnitTestCase {
   /**
    * Gets the SUT.
    *
-   * @param array $config
+   * @param array<mixed> $config
    *   The configuration.
    *
    * @return \Drupal\helfi_azure_fs\Hook\ImageCacheExternalHooks
