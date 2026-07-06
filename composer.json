@@ -13,13 +13,7 @@
         "drupal/coder": "^8.3"
     },
     "conflict": {
-        "drupal/core": "<11.0"
-    },
-    "extra": {
-        "patches": {
-            "drupal/flysystem": {
-                "[#3525203] Remove duplicated Add content button (https://www.drupal.org/i/3525203)": "./public/modules/contrib/helfi_azure_fs/patches/3525203.patch"
-            }
-        }
+        "drupal/core": "<11.0",
+        "drupal/flysystem": "<2.3.1"
     }
 }
