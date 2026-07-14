@@ -7,6 +7,11 @@
 
 declare(strict_types=1);
 
+use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\File\Exception\FileException;
+use Drupal\Core\File\FileExists;
+use Drupal\file\FileInterface;
+
 /**
  * Implements hook_install().
  */
@@ -32,7 +37,7 @@ function helfi_azure_fs_install($is_syncing) : void {
     ->set('make_unused_managed_files_temporary', TRUE)
     ->save();
 
-  // 6 hours.
+  // Keep temporary files for 6 hours.
   \Drupal::configFactory()->getEditable('system.file')
     ->set('temporary_maximum_age', 21600)
     ->save();
@@ -59,4 +64,90 @@ function helfi_azure_fs_update_90202() : void {
  */
 function helfi_azure_fs_update_90203() : void {
   helfi_azure_fs_install(FALSE);
+}
+
+/**
+ * Migrates existing local public files to Azure Blob storage.
+ */
+function helfi_azure_fs_update_90205(&$sandbox) : ?FormattableMarkup {
+  $config = \Drupal::config('helfi_azure_fs.settings');
+
+  if (!$config->get('use_blob_storage')) {
+    return new FormattableMarkup('Skipped helfi_azure_fs_update_90204(): use_blob_storage is not enabled.', []);
+  }
+
+  if (!isset($sandbox['current'])) {
+    $sandbox['current'] = 0;
+    $sandbox['migrated'] = 0;
+    $sandbox['failed'] = 0;
+  }
+  $sandbox['#finished'] = 0;
+
+  $scheme = $config->get('storage_scheme') ?: 'azure';
+  $storage = \Drupal::entityTypeManager()->getStorage('file');
+  $query = $storage->getQuery();
+  $query
+    ->condition('uri', 'public://%', 'LIKE')
+    ->condition('status', FileInterface::STATUS_PERMANENT)
+    ->condition('fid', $sandbox['current'], '>')
+    ->sort('fid')
+    ->range(0, 50);
+  $query->accessCheck(FALSE);
+
+  $ids = $query->execute();
+
+  if (!$ids) {
+    $sandbox['#finished'] = 1;
+    return new FormattableMarkup('Migrated @migrated file(s) to Azure Blob storage, @failed failed (see logs).', [
+      '@migrated' => $sandbox['migrated'],
+      '@failed' => $sandbox['failed'],
+    ]);
+  }
+
+  $fileSystem = \Drupal::service('file_system');
+
+  foreach ($ids as $id) {
+    $sandbox['current'] = $id;
+
+    /** @var \Drupal\file\FileInterface|null $file */
+    $file = $storage->load($id);
+
+    if (!$file) {
+      continue;
+    }
+    $source = $file->getFileUri();
+    $destination = $scheme . '://' . substr($source, strlen('public://'));
+
+    if (!file_exists($source)) {
+      $sandbox['failed']++;
+      \Drupal::logger('helfi_azure_fs')->error('Skipped migrating %source: file missing on local disk.', ['%source' => $source]);
+      continue;
+    }
+
+    try {
+      $fileSystem->copy($source, $destination, FileExists::Replace);
+    }
+    catch (FileException $e) {
+      $sandbox['failed']++;
+      \Drupal::logger('helfi_azure_fs')->error('Failed to copy %source to %destination: %message', [
+        '%source' => $source,
+        '%destination' => $destination,
+        '%message' => $e->getMessage(),
+      ]);
+      continue;
+    }
+
+    if (!file_exists($destination) || filesize($destination) !== filesize($source)) {
+      $sandbox['failed']++;
+      \Drupal::logger('helfi_azure_fs')->error('Verification failed for %source, keeping local copy.', ['%source' => $source]);
+      continue;
+    }
+
+    $file->setFileUri($destination);
+    $file->save();
+
+    $sandbox['migrated']++;
+  }
+
+  return NULL;
 }
