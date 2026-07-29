@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
-use Drupal\Core\Config\StorageInterface;
 use Drupal\helfi_azure_fs\Config\RemoteVideoThumbnailDirectoryOverride;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\Group;
-use Prophecy\PhpUnit\ProphecyTrait;
 
 /**
  * Tests RemoteVideoThumbnailDirectoryOverride.
  */
 #[Group('helfi_azure_fs')]
 class RemoteVideoThumbnailDirectoryOverrideTest extends UnitTestCase {
-
-  use ProphecyTrait;
 
   /**
    * Tests that the thumbnails directory is only overridden when applicable.
