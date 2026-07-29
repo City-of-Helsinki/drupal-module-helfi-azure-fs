@@ -24,6 +24,7 @@ final class RemoteVideoThumbnailDirectoryOverride implements ConfigFactoryOverri
    * Loads the overrides.
    *
    * @param array<mixed> $names
+   *   The config names.
    *
    * @return array<mixed>
    *   The configuration override.
