@@ -21,7 +21,12 @@ final class RemoteVideoThumbnailDirectoryOverride implements ConfigFactoryOverri
   }
 
   /**
-   * {@inheritdoc}
+   * Loads the overrides.
+   *
+   * @param array<mixed> $names
+   *
+   * @return array<mixed>
+   *   The configuration override.
    */
   public function loadOverrides($names): array {
     $overrides = [];
