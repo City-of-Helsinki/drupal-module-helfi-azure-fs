@@ -7,9 +7,9 @@ namespace Drupal\helfi_azure_fs\Config;
 use Drupal\Core\Cache\CacheableMetadata;
 
 /**
- * Overrides the remote video thumbnail directory when using Azure blob storage.
+ * Overrides the default file scheme when using Azure blob storage.
  */
-final class RemoteVideoThumbnailDirectoryOverride extends ConfigFactoryOverrideBase {
+final class DefaultFileSchemeOverride extends ConfigFactoryOverrideBase {
 
   /**
    * Loads the overrides.
@@ -23,8 +23,8 @@ final class RemoteVideoThumbnailDirectoryOverride extends ConfigFactoryOverrideB
   public function loadOverrides($names): array {
     $overrides = [];
 
-    if (in_array('media.type.remote_video', $names, TRUE) && $this->useBlobStorage()) {
-      $overrides['media.type.remote_video']['source_configuration']['thumbnails_directory'] = 'azure://oembed_thumbnails';
+    if (in_array('system.file', $names, TRUE) && $this->useBlobStorage()) {
+      $overrides['system.file']['default_scheme'] = 'azure';
     }
 
     return $overrides;
@@ -34,7 +34,7 @@ final class RemoteVideoThumbnailDirectoryOverride extends ConfigFactoryOverrideB
    * {@inheritdoc}
    */
   public function getCacheSuffix(): string {
-    return 'remote_video_thumbnail_directory_override';
+    return 'system_file_default_scheme_override';
   }
 
   /**
@@ -43,8 +43,8 @@ final class RemoteVideoThumbnailDirectoryOverride extends ConfigFactoryOverrideB
   public function getCacheableMetadata($name): CacheableMetadata {
     $metadata = new CacheableMetadata();
 
-    if ($name === 'media.type.remote_video') {
-      $metadata->addCacheTags(['config:helfi_azure_fs.settings']);
+    if ($name === 'system.file') {
+      $metadata->addCacheTags(['config:system.file']);
     }
 
     return $metadata;
