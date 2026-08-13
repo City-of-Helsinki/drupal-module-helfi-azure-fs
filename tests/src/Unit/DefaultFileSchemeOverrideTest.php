@@ -15,24 +15,24 @@ use PHPUnit\Framework\Attributes\Group;
 class DefaultFileSchemeOverrideTest extends UnitTestCase {
 
   /**
-   * Tests that the default file scheme is only overridden when applicable.
+   * Tests that overrides are only applied when applicable.
    */
   public function testLoadOverrides(): void {
     // Blob storage disabled.
     $this->assertEquals(
       [],
       $this->getSut(['use_blob_storage' => FALSE])
-        ->loadOverrides(['system.file']),
+        ->loadOverrides(['system.file', 'media.type.remote_video']),
     );
 
-    // Blob storage enabled, but config not being loaded.
+    // Blob storage enabled, but no matching config being loaded.
     $this->assertEquals(
       [],
       $this->getSut(['use_blob_storage' => TRUE])
         ->loadOverrides(['media.type.image']),
     );
 
-    // Blob storage enabled.
+    // Blob storage enabled, only 'system.file' is being loaded.
     $this->assertEquals(
       [
         'system.file' => [
@@ -42,6 +42,35 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
       $this->getSut(['use_blob_storage' => TRUE])
         ->loadOverrides(['system.file']),
     );
+
+    // Blob storage enabled, only 'media.type.remote_video' is being loaded.
+    $this->assertEquals(
+      [
+        'media.type.remote_video' => [
+          'source_configuration' => [
+            'thumbnails_directory' => 'azure://oembed_thumbnails',
+          ],
+        ],
+      ],
+      $this->getSut(['use_blob_storage' => TRUE])
+        ->loadOverrides(['media.type.remote_video']),
+    );
+
+    // Blob storage enabled, both are being loaded.
+    $this->assertEquals(
+      [
+        'system.file' => [
+          'default_scheme' => 'azure',
+        ],
+        'media.type.remote_video' => [
+          'source_configuration' => [
+            'thumbnails_directory' => 'azure://oembed_thumbnails',
+          ],
+        ],
+      ],
+      $this->getSut(['use_blob_storage' => TRUE])
+        ->loadOverrides(['system.file', 'media.type.remote_video']),
+    );
   }
 
   /**
@@ -49,7 +78,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
    */
   public function testGetCacheSuffix(): void {
     $this->assertEquals(
-      'system_file_default_scheme_override',
+      'azure_fs_config_overrides',
       $this->getSut([])->getCacheSuffix(),
     );
   }
@@ -68,8 +97,12 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
     $sut = $this->getSut([]);
 
     $this->assertEquals(
-      ['config:system.file'],
+      ['config:helfi_azure_fs.settings'],
       $sut->getCacheableMetadata('system.file')->getCacheTags(),
+    );
+    $this->assertEquals(
+      ['config:helfi_azure_fs.settings'],
+      $sut->getCacheableMetadata('media.type.remote_video')->getCacheTags(),
     );
     $this->assertEquals(
       [],
