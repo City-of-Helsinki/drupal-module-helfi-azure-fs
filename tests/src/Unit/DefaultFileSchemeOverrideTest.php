@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
+use Drupal\Core\Site\Settings;
 use Drupal\helfi_azure_fs\Config\DefaultFileSchemeOverride;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -18,17 +19,20 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
    * Tests that overrides are only applied when applicable.
    */
   public function testLoadOverrides(): void {
+    $settings = [
+      'flysystem' => ['azure' => []],
+    ];
     // Blob storage disabled.
     $this->assertEquals(
       [],
-      $this->getSut(['use_blob_storage' => FALSE])
+      $this->getSut([])
         ->loadOverrides(['system.file', 'media.type.remote_video']),
     );
 
     // Blob storage enabled, but no matching config being loaded.
     $this->assertEquals(
       [],
-      $this->getSut(['use_blob_storage' => TRUE])
+      $this->getSut($settings)
         ->loadOverrides(['media.type.image']),
     );
 
@@ -39,7 +43,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
           'default_scheme' => 'azure',
         ],
       ],
-      $this->getSut(['use_blob_storage' => TRUE])
+      $this->getSut($settings)
         ->loadOverrides(['system.file']),
     );
 
@@ -52,7 +56,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
           ],
         ],
       ],
-      $this->getSut(['use_blob_storage' => TRUE])
+      $this->getSut($settings)
         ->loadOverrides(['media.type.remote_video']),
     );
 
@@ -68,7 +72,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
           ],
         ],
       ],
-      $this->getSut(['use_blob_storage' => TRUE])
+      $this->getSut($settings)
         ->loadOverrides(['system.file', 'media.type.remote_video']),
     );
   }
@@ -120,9 +124,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
    *   The SUT.
    */
   private function getSut(array $settings): DefaultFileSchemeOverride {
-    $config = $this->getConfigFactoryStub(['helfi_azure_fs.settings' => $settings]);
-
-    return new DefaultFileSchemeOverride($config);
+    return new DefaultFileSchemeOverride(new Settings($settings));
   }
 
 }

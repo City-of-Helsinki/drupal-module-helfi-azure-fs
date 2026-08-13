@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Drupal\helfi_azure_fs\Config;
 
 use Drupal\Core\Cache\CacheableMetadata;
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ConfigFactoryOverrideInterface;
 use Drupal\Core\Config\StorableConfigBase;
 use Drupal\Core\Config\StorageInterface;
+use Drupal\Core\Site\Settings;
 
 /**
  * Overrides the default file scheme when using Azure blob storage.
@@ -25,7 +25,7 @@ final class DefaultFileSchemeOverride implements ConfigFactoryOverrideInterface 
   ];
 
   public function __construct(
-    private readonly ConfigFactoryInterface $configFactory,
+    private readonly Settings $settings,
   ) {
   }
 
@@ -36,7 +36,12 @@ final class DefaultFileSchemeOverride implements ConfigFactoryOverrideInterface 
    *   TRUE if Azure blob storage should be used.
    */
   protected function useBlobStorage(): bool {
-    return (bool) $this->configFactory->get('helfi_azure_fs.settings')->get('use_blob_storage');
+    // We can't use 'helfi_azure_fs.settings:use_blob_storage' here because
+    // it depends on config factory, which is not available here.
+    if (!$flysystem = $this->settings->get('flysystem', NULL)) {
+      return FALSE;
+    }
+    return isset($flysystem['azure']);
   }
 
   /**

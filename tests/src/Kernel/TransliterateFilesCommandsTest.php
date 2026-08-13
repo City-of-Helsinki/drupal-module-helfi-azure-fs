@@ -8,12 +8,14 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use Drupal\helfi_azure_fs\Drush\Commands\TransliterateFilesCommands;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests transliterate file Drush command.
- *
- * @group helfi_azure_fs
  */
+#[Group('helfi_azure_fs')]
+#[RunTestsInSeparateProcesses]
 class TransliterateFilesCommandsTest extends FieldKernelTestBase {
 
   /**
