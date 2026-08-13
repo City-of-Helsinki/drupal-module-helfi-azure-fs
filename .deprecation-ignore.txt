@@ -1,2 +1,3 @@
 # @todo Remove this once we update to flysystem 3.x
 %Since guzzlehttp/guzzle 7.11: Passing int to request option "headers.Content-Length" is deprecated; guzzlehttp/guzzle 8.0 requires string|non-empty-array<array-key, string>.%
+%League\\Flysystem\\Filesystem::get\(\): Implicitly marking parameter \$handler as nullable is deprecated, the explicit nullable type must be used instead%
