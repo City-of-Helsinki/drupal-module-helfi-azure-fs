@@ -8,12 +8,14 @@ use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests that file field's uri_scheme can be altered.
- *
- * @group helfi_azure_fs
  */
+#[Group('helfi_azure_fs')]
+#[RunTestsInSeparateProcesses]
 class StorageInfoAlterTest extends FieldKernelTestBase {
 
   /**

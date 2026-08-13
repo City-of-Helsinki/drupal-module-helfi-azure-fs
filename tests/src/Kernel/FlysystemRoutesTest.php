@@ -13,15 +13,17 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\Tests\helfi_api_base\Traits\ApiTestTrait;
 use Drupal\Tests\TestFileCreationTrait;
 use League\Flysystem\AdapterInterface;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Tests Azure adapter plugin.
- *
- * @group helfi_azure_fs
  */
+#[Group('helfi_azure_fs')]
+#[RunTestsInSeparateProcesses]
 class FlysystemRoutesTest extends KernelTestBase {
 
   use ProphecyTrait;

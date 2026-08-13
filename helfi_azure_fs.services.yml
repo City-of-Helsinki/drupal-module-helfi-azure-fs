@@ -3,6 +3,10 @@ services:
     autoconfigure: true
     autowire: true
 
+  Drupal\helfi_azure_fs\Config\DefaultFileSchemeOverride:
+    tags:
+      - { name: config.factory.override, priority: 5 }
+
   azure_file_system:
     class: Drupal\helfi_azure_fs\AzureFileSystem
     decorates: file_system
