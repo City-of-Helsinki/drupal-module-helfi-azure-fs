@@ -129,10 +129,10 @@ function helfi_azure_fs_update_90205(&$sandbox) : ?FormattableMarkup {
 
     try {
       // Make sure the destination directory exists.
-      $dirname = $fileSystem->dirname($destination);
+      $dirname = dirname($destination);
 
       if (!is_dir($dirname)) {
-        $fileSystem->mkdir($dirname, 0777);
+        mkdir($dirname, recursive: TRUE);
       }
       $fileSystem->copy($source, $destination, FileExists::Replace);
     }
