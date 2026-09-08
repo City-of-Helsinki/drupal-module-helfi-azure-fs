@@ -185,7 +185,7 @@ class AzureBlobStorageTest extends UnitTestCase {
    */
   public function testMetadataGetters(): void {
     // Make sure getMetadata() fails gracefully on http error.
-    $this->assertFalse($this->getSutWithException()->getMetadata('test/file.txt'));
+    $this->assertEquals([], $this->getSutWithException()->getMetadata('test/file.txt'));
 
     $filename = 'test/file.txt';
     $this->filesystem->write($filename, 'contents');
