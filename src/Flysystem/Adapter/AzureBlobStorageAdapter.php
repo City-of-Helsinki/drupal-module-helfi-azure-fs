@@ -288,7 +288,9 @@ class AzureBlobStorageAdapter extends AbstractAdapter {
       ];
     }
 
-    return FALSE;
+    // Drupal's Flysystem DrupalCacheAdapter incorrectly expects metadata
+    // to be an array, even though the interface defines array|false.
+    return [];
   }
 
   /**
