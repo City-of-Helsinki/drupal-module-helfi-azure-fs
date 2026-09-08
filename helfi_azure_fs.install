@@ -72,7 +72,7 @@ function helfi_azure_fs_update_90203() : void {
  * @param array<mixed> $sandbox
  *   The sandbox.
  */
-function helfi_azure_fs_update_90207(&$sandbox) : ?FormattableMarkup {
+function helfi_azure_fs_update_90209(&$sandbox) : ?FormattableMarkup {
   $config = \Drupal::config('helfi_azure_fs.settings');
 
   if (!$config->get('use_blob_storage')) {
@@ -172,7 +172,7 @@ function helfi_azure_fs_update_90207(&$sandbox) : ?FormattableMarkup {
  * @param array<mixed> $sandbox
  *   The sandbox.
  */
-function helfi_azure_fs_update_90208(&$sandbox) : ?FormattableMarkup {
+function helfi_azure_fs_update_90210(&$sandbox) : ?FormattableMarkup {
   $config = \Drupal::config('helfi_azure_fs.settings');
 
   if (!$config->get('use_blob_storage')) {
