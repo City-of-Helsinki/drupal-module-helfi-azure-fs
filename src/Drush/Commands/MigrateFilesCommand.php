@@ -15,6 +15,7 @@ use Drush\Style\DrushStyle;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -45,6 +46,15 @@ final class MigrateFilesCommand extends Command {
   /**
    * {@inheritdoc}
    */
+  protected function configure() : void {
+    $this
+      ->addOption('use-existing', NULL, InputOption::VALUE_NONE, 'If a file already exists at the destination on Azure Blob storage, point the file entity to it instead of overwriting it with the local copy. Useful when the local file is missing or a previous migration was interrupted.')
+      ->addUsage('helfi:azure:migrate-files --use-existing');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   protected function execute(InputInterface $input, OutputInterface $output) : int {
     $io = new DrushStyle($input, $output);
 
@@ -52,6 +62,7 @@ final class MigrateFilesCommand extends Command {
       $io->warning('Skipped: use_blob_storage is not enabled.');
       return self::SUCCESS;
     }
+    $useExisting = (bool) $input->getOption('use-existing');
     $storage = $this->entityTypeManager->getStorage('file');
     $migrated = $failed = 0;
     $current = 0;
@@ -82,6 +93,16 @@ final class MigrateFilesCommand extends Command {
         }
         $source = $file->getFileUri();
         $destination = $scheme . '://' . substr($source, strlen('public://'));
+
+        // Reuse the file that's already on Azure instead of overwriting it,
+        // even if the local copy is missing.
+        if ($useExisting && file_exists($destination)) {
+          $file->setFileUri($destination);
+          $file->save();
+
+          $migrated++;
+          continue;
+        }
 
         if (!file_exists($source)) {
           $failed++;

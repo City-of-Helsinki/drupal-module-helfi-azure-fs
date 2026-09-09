@@ -47,6 +47,7 @@ class MigrateFilesCommandTest extends FieldKernelTestBase {
     // The 'temporary://' stream wrapper points to the real system temporary
     // directory, which can contain a leftover file from a previous test run.
     @unlink('temporary://file.txt');
+    @unlink('temporary://missing.txt');
   }
 
   /**
@@ -73,6 +74,34 @@ class MigrateFilesCommandTest extends FieldKernelTestBase {
 
     $file = $fileStorage->load($file->id());
     $this->assertEquals('temporary://file.txt', $file->getFileUri());
+  }
+
+  /**
+   * Make sure --use-existing reuses a file already on Blob storage.
+   */
+  public function testMigrateFilesUsesExistingAzureFile() : void {
+    /** @var \Drupal\Core\File\FileSystemInterface $fileSystem */
+    $fileSystem = $this->container->get('file_system');
+    /** @var \Drupal\file\FileStorageInterface $fileStorage */
+    $fileStorage = $this->container->get('entity_type.manager')->getStorage('file');
+
+    // The local copy is missing entirely, but an identically named file
+    // already exists at the destination on Blob storage.
+    $file = $fileStorage->create([
+      'uri' => 'public://missing.txt',
+      'status' => FileInterface::STATUS_PERMANENT,
+    ]);
+    $file->save();
+    $fileSystem->saveData('azure-data', 'temporary://missing.txt');
+
+    $command = MigrateFilesCommand::create($this->container);
+    $exitCode = $command->run(new ArrayInput(['--use-existing' => TRUE]), new NullOutput());
+    $this->assertEquals(MigrateFilesCommand::SUCCESS, $exitCode);
+
+    $file = $fileStorage->load($file->id());
+    $this->assertEquals('temporary://missing.txt', $file->getFileUri());
+    // Make sure the existing Blob storage file was not touched.
+    $this->assertEquals('azure-data', file_get_contents('temporary://missing.txt'));
   }
 
 }
