@@ -8,9 +8,6 @@
 declare(strict_types=1);
 
 use Drupal\Component\Render\FormattableMarkup;
-use Drupal\Core\File\Exception\FileException;
-use Drupal\Core\File\FileExists;
-use Drupal\file\FileInterface;
 
 /**
  * Implements hook_install().
@@ -69,205 +66,17 @@ function helfi_azure_fs_update_90203() : void {
 /**
  * Migrates existing local public files to Azure Blob storage.
  *
- * @param array<mixed> $sandbox
- *   The sandbox.
+ * @see \Drupal\helfi_azure_fs\Drush\Commands\MigrateFilesCommand
  */
-function helfi_azure_fs_update_90207(&$sandbox) : ?FormattableMarkup {
-  $config = \Drupal::config('helfi_azure_fs.settings');
-
-  if (!$config->get('use_blob_storage')) {
-    return new FormattableMarkup('Skipped helfi_azure_fs_update_90204(): use_blob_storage is not enabled.', []);
-  }
-
-  if (!isset($sandbox['current'])) {
-    $sandbox['current'] = 0;
-    $sandbox['migrated'] = 0;
-    $sandbox['failed'] = 0;
-  }
-  $sandbox['#finished'] = 0;
-
-  $scheme = $config->get('storage_scheme') ?: 'azure';
-  $storage = \Drupal::entityTypeManager()->getStorage('file');
-  $query = $storage->getQuery();
-  $query
-    ->condition('uri', 'public://%', 'LIKE')
-    ->condition('status', FileInterface::STATUS_PERMANENT)
-    ->condition('fid', $sandbox['current'], '>')
-    ->sort('fid')
-    ->range(0, 50);
-  $query->accessCheck(FALSE);
-
-  $ids = $query->execute();
-
-  if (!$ids) {
-    $sandbox['#finished'] = 1;
-    return new FormattableMarkup('Migrated @migrated file(s) to Azure Blob storage, @failed failed (see logs).', [
-      '@migrated' => $sandbox['migrated'],
-      '@failed' => $sandbox['failed'],
-    ]);
-  }
-
-  $fileSystem = \Drupal::service('file_system');
-
-  foreach ($ids as $id) {
-    $sandbox['current'] = $id;
-
-    /** @var \Drupal\file\FileInterface|null $file */
-    $file = $storage->load($id);
-
-    if (!$file) {
-      continue;
-    }
-    $source = $file->getFileUri();
-    $destination = $scheme . '://' . substr($source, strlen('public://'));
-
-    if (!file_exists($source)) {
-      $sandbox['failed']++;
-      \Drupal::logger('helfi_azure_fs')->error('Skipped migrating %source: file missing on local disk.', ['%source' => $source]);
-      continue;
-    }
-
-    try {
-      // Make sure the destination directory exists.
-      $dirname = $fileSystem->dirname($destination);
-
-      if (!is_dir($dirname)) {
-        $fileSystem->mkdir($dirname, 0777);
-      }
-      $fileSystem->copy($source, $destination, FileExists::Replace);
-    }
-    catch (FileException $e) {
-      $sandbox['failed']++;
-      \Drupal::logger('helfi_azure_fs')->error('Failed to copy %source to %destination: %message', [
-        '%source' => $source,
-        '%destination' => $destination,
-        '%message' => $e->getMessage(),
-      ]);
-      continue;
-    }
-
-    if (!file_exists($destination) || filesize($destination) !== filesize($source)) {
-      $sandbox['failed']++;
-      \Drupal::logger('helfi_azure_fs')->error('Verification failed for %source, keeping local copy.', ['%source' => $source]);
-      continue;
-    }
-
-    $file->setFileUri($destination);
-    $file->save();
-
-    $sandbox['migrated']++;
-  }
-
-  return NULL;
+function helfi_azure_fs_update_90205() : FormattableMarkup {
+  return new FormattableMarkup('This update hook has been replaced by the "drush helfi:azure:migrate-files" command. Run it manually instead.', []);
 }
 
 /**
  * Repairs file entities whose Azure blob is missing.
  *
- * Files that already have an 'azure://' URI but whose blob
- * does not actually exist there, e.g. due to an interrupted upload, are
- * re-uploaded from their local 'public://' counterpart, if one still exists
- * on disk.
- *
- * @param array<mixed> $sandbox
- *   The sandbox.
+ * @see \Drupal\helfi_azure_fs\Drush\Commands\RepairFilesCommand
  */
-function helfi_azure_fs_update_90208(&$sandbox) : ?FormattableMarkup {
-  $config = \Drupal::config('helfi_azure_fs.settings');
-
-  if (!$config->get('use_blob_storage')) {
-    return new FormattableMarkup('Skipped helfi_azure_fs_update_90208(): use_blob_storage is not enabled.', []);
-  }
-
-  if (!isset($sandbox['current'])) {
-    $sandbox['current'] = 0;
-    $sandbox['repaired'] = 0;
-    $sandbox['missing'] = 0;
-    $sandbox['failed'] = 0;
-  }
-  $sandbox['#finished'] = 0;
-
-  $scheme = $config->get('storage_scheme') ?: 'azure';
-  $storage = \Drupal::entityTypeManager()->getStorage('file');
-  $query = $storage->getQuery();
-  $query
-    ->condition('uri', $scheme . '://%', 'LIKE')
-    ->condition('status', FileInterface::STATUS_PERMANENT)
-    ->condition('fid', $sandbox['current'], '>')
-    ->sort('fid')
-    ->range(0, 50);
-  $query->accessCheck(FALSE);
-
-  $ids = $query->execute();
-
-  if (!$ids) {
-    $sandbox['#finished'] = 1;
-    return new FormattableMarkup('Checked all files: repaired @repaired, @missing missing on both Azure and local disk, @failed failed to copy (see logs).', [
-      '@repaired' => $sandbox['repaired'],
-      '@missing' => $sandbox['missing'],
-      '@failed' => $sandbox['failed'],
-    ]);
-  }
-
-  $fileSystem = \Drupal::service('file_system');
-
-  foreach ($ids as $id) {
-    $sandbox['current'] = $id;
-
-    /** @var \Drupal\file\FileInterface|null $file */
-    $file = $storage->load($id);
-
-    if (!$file) {
-      continue;
-    }
-    $destination = $file->getFileUri();
-
-    if (file_exists($destination)) {
-      // Already present on Azure, nothing to repair.
-      continue;
-    }
-
-    $source = 'public://' . substr($destination, strlen($scheme . '://'));
-
-    if (!file_exists($source)) {
-      $sandbox['missing']++;
-      \Drupal::logger('helfi_azure_fs')->error('%destination is missing on Azure and no local copy exists at %source.', [
-        '%destination' => $destination,
-        '%source' => $source,
-      ]);
-      continue;
-    }
-
-    try {
-      // Make sure the destination directory exists.
-      $dirname = $fileSystem->dirname($destination);
-
-      if (!is_dir($dirname)) {
-        $fileSystem->mkdir($dirname, 0777);
-      }
-      $fileSystem->copy($source, $destination, FileExists::Replace);
-    }
-    catch (FileException $e) {
-      $sandbox['failed']++;
-      \Drupal::logger('helfi_azure_fs')->error('Failed to copy %source to %destination: %message', [
-        '%source' => $source,
-        '%destination' => $destination,
-        '%message' => $e->getMessage(),
-      ]);
-      continue;
-    }
-
-    if (!file_exists($destination) || filesize($destination) !== filesize($source)) {
-      $sandbox['failed']++;
-      \Drupal::logger('helfi_azure_fs')->error('Verification failed for %destination after copying from %source.', [
-        '%destination' => $destination,
-        '%source' => $source,
-      ]);
-      continue;
-    }
-
-    $sandbox['repaired']++;
-  }
-
-  return NULL;
+function helfi_azure_fs_update_90206() : FormattableMarkup {
+  return new FormattableMarkup('This update hook has been replaced by the "drush helfi:azure:repair-files" command. Run it manually instead.', []);
 }
