@@ -166,7 +166,7 @@ final class TransliterateFilesCommands extends DrushCommands {
         continue;
       }
       // Convert non-breaking spaces to normal spaces.
-      $href = preg_replace('/^(\\s|\\xC2\\xA0)+|(\\s|\\xC2\\xA0)+$/', '', $href);
+      $href = preg_replace('/^(\\s|\\xC2\\xA0)+|(\\s|\\xC2\\xA0)+$/', '', $href) ?? $href;
       $href = trim($href);
 
       // Skip invalid links or links that does not result in 404 error.
@@ -256,7 +256,7 @@ final class TransliterateFilesCommands extends DrushCommands {
       }
       $originalFileUri = $file->getFileUri();
 
-      if (!file_exists($originalFileUri)) {
+      if (!is_string($originalFileUri) || !file_exists($originalFileUri)) {
         $this->io()->warning("File {$originalFileUri} does not exist on disk. Skipping ...");
 
         continue;
