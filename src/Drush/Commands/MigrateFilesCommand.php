@@ -92,6 +92,12 @@ final class MigrateFilesCommand extends Command {
           continue;
         }
         $source = $file->getFileUri();
+
+        if (!is_string($source)) {
+          $failed++;
+          $io->error(sprintf('Skipped migrating file %d: has no URI.', $id));
+          continue;
+        }
         $destination = $scheme . '://' . substr($source, strlen('public://'));
 
         // Reuse the file that's already on Azure instead of overwriting it,

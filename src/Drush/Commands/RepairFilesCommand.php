@@ -87,6 +87,12 @@ final class RepairFilesCommand extends Command {
         }
         $destination = $file->getFileUri();
 
+        if (!is_string($destination)) {
+          $missing++;
+          $io->error(sprintf('Skipped file %d: has no URI.', $id));
+          continue;
+        }
+
         if (file_exists($destination)) {
           // Already present on Azure, nothing to repair.
           continue;
