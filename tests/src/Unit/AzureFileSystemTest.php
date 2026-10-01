@@ -13,15 +13,15 @@ use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use org\bovigo\vfs\vfsStream;
 
 /**
  * Tests AzureFileSystem.
- *
- * @group helfi_azure_fs
  */
+#[Group('helfi_azure_fs')]
 class AzureFileSystemTest extends UnitTestCase {
 
   use ProphecyTrait;
@@ -101,9 +101,8 @@ class AzureFileSystemTest extends UnitTestCase {
 
   /**
    * Tests chmod.
-   *
-   * @dataProvider chmodFolderData
    */
+  #[DataProvider('chmodFolderData')]
   public function testChmodSkipFsOperations(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -119,7 +118,7 @@ class AzureFileSystemTest extends UnitTestCase {
   /**
    * Tests fallback operation.
    */
-  #[DataProvider(methodName: 'chmodFolderData')]
+  #[DataProvider('chmodFolderData')]
   public function testSkipOperationsFallback(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -183,7 +182,7 @@ class AzureFileSystemTest extends UnitTestCase {
   /**
    * Tests mkdir with skipFsOperations.
    */
-  #[DataProvider(methodName: 'chmodFolderData')]
+  #[DataProvider('chmodFolderData')]
   public function testMkdirSkipFsOperations(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
