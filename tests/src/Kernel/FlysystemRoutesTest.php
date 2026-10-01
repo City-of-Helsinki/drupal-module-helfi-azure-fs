@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
+use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\flysystem\StreamWrapper\FlysystemStreamWrapper;
 use Drupal\helfi_azure_fs\Plugin\Flysystem\Adapter\Azure;
 use Drupal\KernelTests\KernelTestBase;
 use League\Flysystem\Filesystem;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Tests the Azure adapter driver integration with Flysystem.
@@ -31,6 +34,19 @@ class FlysystemRoutesTest extends KernelTestBase {
     'flysystem',
     'helfi_azure_fs',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  public function register(ContainerBuilder $container): void {
+    parent::register($container);
+    // Flysystem registers stream wrappers for the settings.php schemes when
+    // the container is built, before setUp() defines them.
+    $container
+      ->register('stream_wrapper.flysystem.azure', FlysystemStreamWrapper::class)
+      ->addTag('stream_wrapper', ['scheme' => 'azure'])
+      ->addMethodCall('setFactory', [new Reference('flysystem.filesystem_factory')]);
+  }
 
   /**
    * {@inheritdoc}
@@ -66,6 +82,10 @@ class FlysystemRoutesTest extends KernelTestBase {
     $this->assertInstanceOf(Azure::class, $factory->getDriver('azure'));
     $this->assertInstanceOf(Filesystem::class, $factory->getFilesystem('azure'));
     $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container', $factory->getDefinition('azure')->publicUrlBase);
+
+    // File URLs are generated from the public URL base.
+    $url = $this->container->get('file_url_generator')->generateAbsoluteString('azure://folder/test file.jpg');
+    $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container/folder/test%20file.jpg', $url);
   }
 
   /**
