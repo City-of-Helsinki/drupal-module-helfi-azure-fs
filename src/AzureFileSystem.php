@@ -74,60 +74,17 @@ final class AzureFileSystem implements FileSystemInterface {
     $recursive = FALSE,
     $context = NULL,
   ): bool {
-    if (!$this->skipFsOperations) {
-      return $this->decorated->mkdir($uri, $mode, $recursive, $context);
-    }
-
-    // If the URI has a scheme, don't override the umask - schemes can handle
-    // this issue in their own implementation.
-    if ($this->streamWrapperManager::getScheme($uri)) {
+    // The core file system sets the mode of local directories with chmod() to
+    // override the umask, so create them without it. The URIs with a scheme
+    // are created by their stream wrappers, which don't use chmod().
+    if ($this->skipFsOperations && !$this->streamWrapperManager::getScheme($uri)) {
       return $this->mkdirCall($uri, 0777, $recursive, $context);
     }
-
-    // If recursive, create each missing component of the parent directory
-    // individually and set the mode explicitly to override the umask.
-    if ($recursive) {
-      // Ensure the path is using DIRECTORY_SEPARATOR, and trim off any trailing
-      // slashes because they can throw off the loop when creating the parent
-      // directories.
-      $uri = rtrim(str_replace('/', DIRECTORY_SEPARATOR, $uri), DIRECTORY_SEPARATOR);
-      // Determine the components of the path.
-      $components = explode(DIRECTORY_SEPARATOR, $uri);
-      // If the filepath is absolute the first component will be empty as there
-      // will be nothing before the first slash.
-      if ($components[0] == '') {
-        $recursive_path = DIRECTORY_SEPARATOR;
-        // Get rid of the empty first component.
-        array_shift($components);
-      }
-      else {
-        $recursive_path = '';
-      }
-      // Don't handle the top-level directory in this loop.
-      array_pop($components);
-      // Create each component if necessary.
-      foreach ($components as $component) {
-        $recursive_path .= $component;
-
-        if (!file_exists($recursive_path)) {
-          $success = $this->mkdirCall($recursive_path, 0777, FALSE, $context);
-          // If the operation failed, check again if the directory was created
-          // by another process/server, only report a failure if not.
-          if (!$success && !file_exists($recursive_path)) {
-            return FALSE;
-          }
-        }
-
-        $recursive_path .= DIRECTORY_SEPARATOR;
-      }
-    }
-
-    // Do not check if the top-level directory already exists, as this condition
-    // must cause this function to fail.
-    if (!$this->mkdirCall($uri, 0777, FALSE, $context)) {
-      return FALSE;
-    }
-    return TRUE;
+    // Let the decorated service use its own default mode. Flysystem's file
+    // system doesn't accept NULL.
+    return $mode === NULL ?
+      $this->decorated->mkdir($uri, recursive: $recursive, context: $context) :
+      $this->decorated->mkdir($uri, $mode, $recursive, $context);
   }
 
   /**

@@ -193,24 +193,27 @@ class AzureFileSystemTest extends UnitTestCase {
     $decorated->mkdir($uri, NULL, FALSE, NULL)
       ->shouldBeCalled()
       ->willReturn(TRUE);
+    $decorated->mkdir($uri, 0755, TRUE, NULL)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
 
-    $this->getSut($decorated->reveal(), new Settings([]))->mkdir($uri);
+    $sut = $this->getSut($decorated->reveal(), new Settings([]));
+    $this->assertTrue($sut->mkdir($uri));
+    $this->assertTrue($sut->mkdir($uri, 0755, TRUE));
   }
 
   /**
-   * Tests mkdir with scheme.
+   * Tests that URIs with a scheme are created by the decorated service.
    */
   public function testMkdirWithScheme() : void {
-    vfsStream::setup('dir');
     $streamWrapperManager = $this->getStreamWrapperManagerMock('vfs');
     $uri = 'vfs://dir/subdir';
     $decorated = $this->prophesize(FileSystemInterface::class);
     $decorated->mkdir($uri, NULL, FALSE, NULL)
-      ->shouldNotBeCalled();
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
     $sut = $this->getSut($decorated->reveal(), new Settings(['is_azure' => TRUE]), $streamWrapperManager);
     $this->assertTrue($sut->mkdir($uri));
-    $this->assertTrue(file_exists($uri));
-    $this->assertFilePermissions(0777, $uri);
   }
 
   /**
@@ -231,10 +234,14 @@ class AzureFileSystemTest extends UnitTestCase {
     $this->assertTrue(file_exists($uri));
     $this->assertFilePermissions(0777, $uri);
 
-    $uri = 'vfs://dir/subdir/subdir2';
+    $uri = 'vfs://dir/subdir/subdir2/subdir3';
     $this->assertTrue($sut->mkdir($uri, recursive: TRUE));
     $this->assertTrue(file_exists($uri));
+    $this->assertFilePermissions(0777, 'vfs://dir/subdir/subdir2');
     $this->assertFilePermissions(0777, $uri);
+
+    // Creating an existing directory fails.
+    $this->assertFalse(@$sut->mkdir($uri));
   }
 
 }
