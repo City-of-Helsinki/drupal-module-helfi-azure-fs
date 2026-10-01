@@ -8,8 +8,10 @@ use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\flysystem\StreamWrapper\FlysystemStreamWrapper;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Tests that file field's uri_scheme can be altered.
@@ -24,6 +26,7 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
   protected static $modules = [
     'image',
     'file',
+    'key',
     'flysystem',
     'helfi_azure_fs',
   ];
@@ -35,8 +38,9 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     parent::register($container);
     // Register azure stream wrapper manually.
     $container
-      ->register('flysystem_stream_wrapper.azure', 'Drupal\flysystem\FlysystemBridge')
-      ->addTag('stream_wrapper', ['scheme' => 'azure']);
+      ->register('stream_wrapper.flysystem.azure', FlysystemStreamWrapper::class)
+      ->addTag('stream_wrapper', ['scheme' => 'azure'])
+      ->addMethodCall('setFactory', [new Reference('flysystem.filesystem_factory')]);
   }
 
   /**
