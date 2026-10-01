@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
-use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\flysystem\StreamWrapper\FlysystemStreamWrapper;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
-use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Tests that file field's uri_scheme can be altered.
@@ -30,18 +27,6 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     'flysystem',
     'helfi_azure_fs',
   ];
-
-  /**
-   * {@inheritdoc}
-   */
-  public function register(ContainerBuilder $container) {
-    parent::register($container);
-    // Register azure stream wrapper manually.
-    $container
-      ->register('stream_wrapper.flysystem.azure', FlysystemStreamWrapper::class)
-      ->addTag('stream_wrapper', ['scheme' => 'azure'])
-      ->addMethodCall('setFactory', [new Reference('flysystem.filesystem_factory')]);
-  }
 
   /**
    * {@inheritdoc}
@@ -96,7 +81,7 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     $this->config('helfi_azure_fs.settings')
       ->set('storage_scheme', 'azure')
       ->set('use_blob_storage', TRUE)->save();
-    drupal_flush_all_caches();
+    $this->container->get('entity_field.manager')->clearCachedFieldDefinitions();
 
     $this->assertScheme('azure');
 

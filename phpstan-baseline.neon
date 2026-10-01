@@ -25,12 +25,6 @@ parameters:
 			path: src/Drush/Commands/TransliterateFilesCommands.php
 
 		-
-			message: '#^Method Drupal\\Tests\\helfi_azure_fs\\Kernel\\StorageInfoAlterTest\:\:register\(\) has no return type specified\.$#'
-			identifier: missingType.return
-			count: 1
-			path: tests/src/Kernel/StorageInfoAlterTest.php
-
-		-
 			message: '#^Attribute class PHPUnit\\Framework\\Attributes\\DataProvider constructor invoked with named argument \$methodName, but it''s not allowed because of @no\-named\-arguments\.$#'
 			identifier: argument.named
 			count: 2
