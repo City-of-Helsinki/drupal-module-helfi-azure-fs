@@ -48,6 +48,23 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
   private readonly MimeTypeDetector $mimeTypeDetector;
 
   /**
+   * The results of stat(), keyed by path.
+   *
+   * Drupal checks the same paths repeatedly within a request, like the image
+   * style derivatives of a file once per image style and file field. This is
+   * cleared whenever the adapter changes anything, and lives as long as the
+   * adapter, so only for the current request.
+   *
+   * @var array<string, \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null>
+   */
+  private array $stats = [];
+
+  /**
+   * The maximum number of cached stat() results.
+   */
+  private const int MAX_STATS = 1000;
+
+  /**
    * Constructs a new instance.
    *
    * @param \AzureOss\Storage\Blob\BlobContainerClient $client
@@ -118,6 +135,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    *   The config.
    */
   private function upload(string $path, mixed $contents, Config $config): void {
+    $this->clearStats();
     $mimeType = $config->get('mimetype') ?? (is_string($contents)
       ? $this->mimeTypeDetector->detectMimeType($path, $contents)
       : $this->mimeTypeDetector->detectMimeTypeFromPath($path));
@@ -170,6 +188,8 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    * {@inheritdoc}
    */
   public function delete(string $path): void {
+    $this->clearStats();
+
     try {
       $this->client->getBlobClient($this->prefixer->prefixPath($path))
         ->deleteIfExists();
@@ -183,6 +203,8 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    * {@inheritdoc}
    */
   public function deleteDirectory(string $path): void {
+    $this->clearStats();
+
     try {
       foreach ($this->client->getBlobs($this->prefixer->prefixDirectoryPath($path)) as $blob) {
         $this->client->getBlobClient($blob->name)->deleteIfExists();
@@ -266,6 +288,80 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
   }
 
   /**
+   * Gets the attributes of the given file or directory with one request.
+   *
+   * Checking whether a path is a directory and then fetching its metadata
+   * takes one request each. Listing the blobs that start with the path
+   * returns both the blob with the same name and the "directory" prefix.
+   *
+   * The results are cached until the adapter changes anything.
+   *
+   * @param string $path
+   *   The path.
+   *
+   * @return \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null
+   *   The attributes, or NULL if nothing exists in the given path.
+   */
+  public function stat(string $path): FileAttributes|DirectoryAttributes|null {
+    if (!array_key_exists($path, $this->stats)) {
+      if (count($this->stats) >= self::MAX_STATS) {
+        $this->clearStats();
+      }
+      $this->stats[$path] = $this->fetchStat($path);
+    }
+    return $this->stats[$path];
+  }
+
+  /**
+   * Clears the cached stat() results.
+   *
+   * Changing a blob can change the result of any path, like whether its
+   * parent "directory" exists.
+   */
+  private function clearStats(): void {
+    $this->stats = [];
+  }
+
+  /**
+   * Fetches the attributes of the given file or directory.
+   *
+   * @param string $path
+   *   The path.
+   *
+   * @return \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null
+   *   The attributes, or NULL if nothing exists in the given path.
+   */
+  private function fetchStat(string $path): FileAttributes|DirectoryAttributes|null {
+    $name = $this->prefixer->prefixPath($path);
+
+    if ($name === '') {
+      return new DirectoryAttributes($path);
+    }
+    $file = NULL;
+
+    try {
+      // The listing contains the blob itself, the "directory" prefix and the
+      // siblings whose names start with the same name.
+      foreach ($this->client->getBlobsByHierarchy($name) as $item) {
+        if ($item instanceof Blob) {
+          if ($item->name === $name) {
+            $file = $this->normalizeBlobProperties($path, $item->properties);
+          }
+          continue;
+        }
+        // Directories take precedence like in the Flysystem stream wrapper.
+        if ($item->name === $name . '/') {
+          return new DirectoryAttributes($path);
+        }
+      }
+    }
+    catch (BlobStorageException | GuzzleException $e) {
+      throw UnableToRetrieveMetadata::create($path, 'stat', $e->getMessage(), $e);
+    }
+    return $file;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function listContents(string $path, bool $deep): iterable {
@@ -310,6 +406,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    * {@inheritdoc}
    */
   public function copy(string $source, string $destination, Config $config): void {
+    $this->clearStats();
     $sourceBlobClient = $this->client->getBlobClient($this->prefixer->prefixPath($source));
     $targetBlobClient = $this->client->getBlobClient($this->prefixer->prefixPath($destination));
 

@@ -11,7 +11,6 @@ use Drupal\flysystem\Adapter\AdapterDriverPluginBase;
 use Drupal\flysystem\Attribute\FlysystemAdapter;
 use Drupal\flysystem\Exception\AdapterConfigurationException;
 use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
-use League\Flysystem\FilesystemAdapter;
 
 /**
  * Flysystem adapter driver for Azure Blob Storage.
@@ -40,19 +39,36 @@ use League\Flysystem\FilesystemAdapter;
 final class Azure extends AdapterDriverPluginBase {
 
   /**
+   * The adapters, keyed by a hash of the configuration.
+   *
+   * The plugin is instantiated every time the driver is needed. Sharing the
+   * adapter lets the stream wrapper reuse the connection of the filesystem.
+   *
+   * @var array<string, \Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter>
+   *
+   * @see \Drupal\helfi_azure_fs\StreamWrapper\AzureStreamWrapper::url_stat()
+   */
+  protected static array $adapters = [];
+
+  /**
    * {@inheritdoc}
    *
    * @param array<string, mixed> $config
    *   The driver configuration.
    */
-  public function buildAdapter(array $config): FilesystemAdapter {
+  public function buildAdapter(array $config): AzureBlobStorageAdapter {
     if (empty($config['container'])) {
       throw new AdapterConfigurationException('The "container" setting is required.');
     }
-    $client = BlobServiceClient::fromConnectionString($this->getConnectionString($config))
-      ->getContainerClient($config['container']);
+    $key = hash('xxh3', serialize($config));
 
-    return new AzureBlobStorageAdapter($client);
+    if (!isset(self::$adapters[$key])) {
+      $client = BlobServiceClient::fromConnectionString($this->getConnectionString($config))
+        ->getContainerClient($config['container']);
+
+      self::$adapters[$key] = new AzureBlobStorageAdapter($client);
+    }
+    return self::$adapters[$key];
   }
 
   /**

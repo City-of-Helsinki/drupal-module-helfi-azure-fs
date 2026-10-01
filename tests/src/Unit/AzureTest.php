@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
 use Drupal\flysystem\Exception\AdapterConfigurationException;
-use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
 use Drupal\helfi_azure_fs\Plugin\Flysystem\Adapter\Azure;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -38,7 +37,8 @@ class AzureTest extends UnitTestCase {
 
     $sut = $this->getSut();
     $this->assertEquals($expected, $sut->getConnectionString($configuration));
-    $this->assertInstanceOf(AzureBlobStorageAdapter::class, $sut->buildAdapter($configuration));
+    // The adapters are shared.
+    $this->assertSame($sut->buildAdapter($configuration), $this->getSut()->buildAdapter($configuration));
   }
 
   /**

@@ -7,6 +7,8 @@ namespace Drupal\Tests\helfi_azure_fs\Unit;
 use Drupal\helfi_azure_fs\Plugin\Flysystem\Adapter\Azure;
 use Drupal\Tests\helfi_api_base\Traits\SecretsTrait;
 use Drupal\Tests\UnitTestCase;
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
 use League\Flysystem\Filesystem;
 use League\Flysystem\StorageAttributes;
 use League\Flysystem\UnableToListContents;
@@ -218,6 +220,49 @@ class AzureBlobStorageTest extends UnitTestCase {
 
     $this->filesystem->delete($filename);
     $this->assertFalse($this->filesystem->fileExists($filename));
+  }
+
+  /**
+   * Tests stat().
+   */
+  public function testStat(): void {
+    $adapter = (new Azure([], 'helfi_azure', []))->buildAdapter([
+      'container' => $this->getSecret('flysystem_azure_container_name'),
+      'connectionString' => $this->getSecret('flysystem_azure_connection_string'),
+    ]);
+    $this->filesystem->write('test/stat/file.txt', 'contents');
+
+    $attributes = $adapter->stat('test/stat/file.txt');
+    $this->assertInstanceOf(FileAttributes::class, $attributes);
+    $this->assertEquals(8, $attributes->fileSize());
+    $this->assertIsInt($attributes->lastModified());
+    $this->assertInstanceOf(DirectoryAttributes::class, $adapter->stat('test/stat'));
+    $this->assertInstanceOf(DirectoryAttributes::class, $adapter->stat(''));
+    // Blobs that only start with the path don't exist.
+    $this->assertNull($adapter->stat('test/stat/file'));
+    $this->assertNull($adapter->stat('test/stat/missing.txt'));
+
+    // The results are cached until the adapter changes something.
+    $this->assertSame($attributes, $adapter->stat('test/stat/file.txt'));
+    $this->filesystem->write('test/stat/file.txt', 'new contents');
+    $attributes = $adapter->stat('test/stat/file.txt');
+    $this->assertEquals(12, $attributes->fileSize());
+
+    $this->filesystem->delete('test/stat/file.txt');
+    $this->assertNull($adapter->stat('test/stat/file.txt'));
+    $this->assertNull($adapter->stat('test/stat'));
+  }
+
+  /**
+   * Tests that failing stat requests throw.
+   */
+  public function testStatErrors(): void {
+    $adapter = (new Azure([], 'helfi_azure', []))->buildAdapter([
+      'container' => 'invalid',
+      'connectionString' => 'UseDevelopmentStorage=true',
+    ]);
+    $this->expectException(UnableToRetrieveMetadata::class);
+    $adapter->stat('test/file.txt');
   }
 
   /**

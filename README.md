@@ -53,6 +53,8 @@ $schemes = [
 ];
 $config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
 $settings['flysystem'] = $schemes;
+// Required to serve image style derivatives without file access checks.
+$settings['file_additional_public_schemes'] = ['azure'];
 $settings['is_azure'] = TRUE;
 ```
 
