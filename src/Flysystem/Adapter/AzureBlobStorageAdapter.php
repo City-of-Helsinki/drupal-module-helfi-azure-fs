@@ -24,7 +24,6 @@ use League\Flysystem\UnableToListContents;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToRetrieveMetadata;
-use League\Flysystem\UnableToSetVisibility;
 use League\Flysystem\UnableToWriteFile;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
@@ -206,7 +205,9 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    * {@inheritdoc}
    */
   public function setVisibility(string $path, string $visibility): void {
-    throw UnableToSetVisibility::atLocation($path, 'Azure Blob Storage does not support visibility.');
+    // Blob storage has no per-blob visibility: the access level is set for
+    // the whole container. Ignore it, since Drupal calls chmod() on every
+    // saved file.
   }
 
   /**

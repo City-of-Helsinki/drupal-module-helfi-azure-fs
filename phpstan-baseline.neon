@@ -37,7 +37,7 @@ parameters:
 			path: tests/src/Unit/AzureFileSystemTest.php
 
 		-
-			message: '#^Method Drupal\\Core\\StreamWrapper\\StreamWrapperManager@anonymous/tests/src/Unit/AzureFileSystemTest\.php\:38\:\:getScheme\(\) should return string\|false but returns bool\|string\.$#'
+			message: '#^Method Drupal\\Core\\StreamWrapper\\StreamWrapperManager@anonymous/tests/src/Unit/AzureFileSystemTest\.php\:39\:\:getScheme\(\) should return string\|false but returns bool\|string\.$#'
 			identifier: return.type
 			count: 1
 			path: tests/src/Unit/AzureFileSystemTest.php

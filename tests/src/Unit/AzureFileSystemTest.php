@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
+use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
@@ -126,11 +127,38 @@ class AzureFileSystemTest extends UnitTestCase {
     // Make sure decorated service is called when 'skipFsOperations'
     // is disabled.
     $decorated = $this->prophesize(FileSystemInterface::class);
-    $decorated->chmod($uri, NULL)
+    $decorated->chmod($uri)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+    $decorated->chmod($uri, 0644)
       ->shouldBeCalled()
       ->willReturn(TRUE);
 
-    $this->getSut($decorated->reveal(), new Settings([]))->chmod($uri);
+    $sut = $this->getSut($decorated->reveal(), new Settings([]));
+    $this->assertTrue($sut->chmod($uri));
+    $this->assertTrue($sut->chmod($uri, 0644));
+  }
+
+  /**
+   * Tests that other operations are delegated to the decorated service.
+   */
+  public function testDelegatesOperations() : void {
+    $directory = 'azure://folder';
+    $decorated = $this->prophesize(FileSystemInterface::class);
+    $decorated->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+    $decorated->saveData('data', 'azure://folder/file.txt', FileExists::Replace)
+      ->shouldBeCalled()
+      ->willReturn('azure://folder/file.txt');
+    $decorated->delete('azure://folder/file.txt')
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+
+    $sut = $this->getSut($decorated->reveal(), new Settings(['is_azure' => TRUE]));
+    $this->assertTrue($sut->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY));
+    $this->assertEquals('azure://folder/file.txt', $sut->saveData('data', 'azure://folder/file.txt', FileExists::Replace));
+    $this->assertTrue($sut->delete('azure://folder/file.txt'));
   }
 
   /**
