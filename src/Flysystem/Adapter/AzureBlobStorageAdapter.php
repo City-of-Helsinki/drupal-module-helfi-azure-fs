@@ -7,45 +7,41 @@ namespace Drupal\helfi_azure_fs\Flysystem\Adapter;
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
 use AzureOss\Storage\Blob\Models\Blob;
-use AzureOss\Storage\Blob\Models\BlobProperties;
-use AzureOss\Storage\Blob\Models\UploadBlobOptions;
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter as InnerAdapter;
 use GuzzleHttp\Exception\GuzzleException;
+use League\Flysystem\ChecksumProvider;
 use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\PathPrefixer;
-use League\Flysystem\UnableToCheckDirectoryExistence;
-use League\Flysystem\UnableToCheckFileExistence;
-use League\Flysystem\UnableToCopyFile;
-use League\Flysystem\UnableToDeleteDirectory;
-use League\Flysystem\UnableToDeleteFile;
-use League\Flysystem\UnableToListContents;
-use League\Flysystem\UnableToMoveFile;
-use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToRetrieveMetadata;
-use League\Flysystem\UnableToWriteFile;
-use League\MimeTypeDetection\FinfoMimeTypeDetector;
-use League\MimeTypeDetection\MimeTypeDetector;
 
 /**
  * The blob storage adapter.
  *
- * A league/flysystem 3.x adapter for Azure Blob Storage, built on
- * azure-oss/storage. Originally ported from
- * league/flysystem-azure-blob-storage:1.0.0.
+ * Decorates the azure-oss/storage-blob-flysystem adapter with stat(), which
+ * checks a file or directory with a single request and caches the results
+ * until the adapter changes anything.
+ *
+ * @see \Drupal\helfi_azure_fs\StreamWrapper\AzureStreamWrapper::url_stat()
  */
-final class AzureBlobStorageAdapter implements FilesystemAdapter {
+final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider {
+
+  /**
+   * The maximum number of cached stat() results.
+   */
+  private const int MAX_STATS = 1000;
+
+  /**
+   * The decorated adapter.
+   */
+  private readonly InnerAdapter $inner;
 
   /**
    * The path prefixer.
    */
   private readonly PathPrefixer $prefixer;
-
-  /**
-   * The mime type detector.
-   */
-  private readonly MimeTypeDetector $mimeTypeDetector;
 
   /**
    * The results of stat(), keyed by path.
@@ -60,231 +56,29 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
   private array $stats = [];
 
   /**
-   * The maximum number of cached stat() results.
-   */
-  private const int MAX_STATS = 1000;
-
-  /**
    * Constructs a new instance.
    *
    * @param \AzureOss\Storage\Blob\BlobContainerClient $client
    *   The container client.
    * @param string $prefix
    *   The path prefix inside the container.
-   * @param \League\MimeTypeDetection\MimeTypeDetector|null $mimeTypeDetector
-   *   The mime type detector.
    */
   public function __construct(
     private readonly BlobContainerClient $client,
     string $prefix = '',
-    ?MimeTypeDetector $mimeTypeDetector = NULL,
   ) {
     $this->prefixer = new PathPrefixer($prefix);
-    $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function fileExists(string $path): bool {
-    try {
-      return $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->exists();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToCheckFileExistence::forLocation($path, $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function directoryExists(string $path): bool {
-    try {
-      // Stops after the first matching blob.
-      return $this->client->getBlobs($this->prefixer->prefixDirectoryPath($path))
-        ->valid();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToCheckDirectoryExistence::forLocation($path, $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function write(string $path, string $contents, Config $config): void {
-    $this->upload($path, $contents, $config);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function writeStream(string $path, $contents, Config $config): void {
-    $this->upload($path, $contents, $config);
-  }
-
-  /**
-   * Uploads the given contents.
-   *
-   * @param string $path
-   *   The path.
-   * @param string|resource $contents
-   *   The contents.
-   * @param \League\Flysystem\Config $config
-   *   The config.
-   */
-  private function upload(string $path, mixed $contents, Config $config): void {
-    $this->clearStats();
-    $mimeType = $config->get('mimetype') ?? (is_string($contents)
-      ? $this->mimeTypeDetector->detectMimeType($path, $contents)
-      : $this->mimeTypeDetector->detectMimeTypeFromPath($path));
-
-    try {
-      $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->upload($contents, new UploadBlobOptions(contentType: $mimeType));
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToWriteFile::atLocation($path, $e->getMessage(), $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function read(string $path): string {
-    try {
-      return $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->downloadStreaming()
-        ->content
-        ->getContents();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToReadFile::fromLocation($path, $e->getMessage(), $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function readStream(string $path) {
-    try {
-      $stream = $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->downloadStreaming()
-        ->content
-        ->detach();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToReadFile::fromLocation($path, $e->getMessage(), $e);
-    }
-
-    if (!is_resource($stream)) {
-      throw UnableToReadFile::fromLocation($path, 'Unable to open the download stream.');
-    }
-    return $stream;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete(string $path): void {
-    $this->clearStats();
-
-    try {
-      $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->deleteIfExists();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToDeleteFile::atLocation($path, $e->getMessage(), $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function deleteDirectory(string $path): void {
-    $this->clearStats();
-
-    try {
-      foreach ($this->client->getBlobs($this->prefixer->prefixDirectoryPath($path)) as $blob) {
-        $this->client->getBlobClient($blob->name)->deleteIfExists();
-      }
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToDeleteDirectory::atLocation($path, $e->getMessage(), $e);
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createDirectory(string $path, Config $config): void {
-    // Blob storage has no real directories: they exist implicitly as the
-    // prefixes of the blob names.
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setVisibility(string $path, string $visibility): void {
-    // Blob storage has no per-blob visibility: the access level is set for
-    // the whole container. Ignore it, since Drupal calls chmod() on every
-    // saved file.
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function visibility(string $path): FileAttributes {
-    throw UnableToRetrieveMetadata::visibility($path, 'Azure Blob Storage does not support visibility.');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function mimeType(string $path): FileAttributes {
-    $attributes = $this->fetchFileAttributes($path, FileAttributes::ATTRIBUTE_MIME_TYPE);
-
-    if ($attributes->mimeType() === NULL) {
-      throw UnableToRetrieveMetadata::mimeType($path);
-    }
-    return $attributes;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function lastModified(string $path): FileAttributes {
-    return $this->fetchFileAttributes($path, FileAttributes::ATTRIBUTE_LAST_MODIFIED);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function fileSize(string $path): FileAttributes {
-    return $this->fetchFileAttributes($path, FileAttributes::ATTRIBUTE_FILE_SIZE);
-  }
-
-  /**
-   * Fetches the file attributes of the given blob.
-   *
-   * @param string $path
-   *   The path.
-   * @param string $type
-   *   The requested metadata type, used in the exception message.
-   *
-   * @return \League\Flysystem\FileAttributes
-   *   The file attributes.
-   */
-  private function fetchFileAttributes(string $path, string $type): FileAttributes {
-    try {
-      $properties = $this->client->getBlobClient($this->prefixer->prefixPath($path))
-        ->getProperties();
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToRetrieveMetadata::create($path, $type, $e->getMessage(), $e);
-    }
-    return $this->normalizeBlobProperties($path, $properties);
+    $this->inner = new InnerAdapter(
+      $client,
+      $prefix,
+      // Blob storage has no per-blob visibility: the access level is set for
+      // the whole container. Ignore it, since Drupal calls chmod() on every
+      // saved file.
+      visibilityHandling: InnerAdapter::ON_VISIBILITY_IGNORE,
+      // The blobs are served directly from the container. This also keeps
+      // the copies on the server side with SAS token credentials.
+      isPublicContainer: TRUE,
+    );
   }
 
   /**
@@ -345,7 +139,13 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
       foreach ($this->client->getBlobsByHierarchy($name) as $item) {
         if ($item instanceof Blob) {
           if ($item->name === $name) {
-            $file = $this->normalizeBlobProperties($path, $item->properties);
+            $file = new FileAttributes(
+              $path,
+              $item->properties->contentLength,
+              NULL,
+              $item->properties->lastModified?->getTimestamp(),
+              $item->properties->contentType,
+            );
           }
           continue;
         }
@@ -364,42 +164,118 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
   /**
    * {@inheritdoc}
    */
+  public function fileExists(string $path): bool {
+    return $this->inner->fileExists($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function directoryExists(string $path): bool {
+    return $this->inner->directoryExists($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function write(string $path, string $contents, Config $config): void {
+    $this->clearStats();
+    $this->inner->write($path, $contents, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function writeStream(string $path, $contents, Config $config): void {
+    $this->clearStats();
+    $this->inner->writeStream($path, $contents, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function read(string $path): string {
+    return $this->inner->read($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function readStream(string $path) {
+    return $this->inner->readStream($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function delete(string $path): void {
+    $this->clearStats();
+    $this->inner->delete($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function deleteDirectory(string $path): void {
+    $this->clearStats();
+    $this->inner->deleteDirectory($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function createDirectory(string $path, Config $config): void {
+    $this->inner->createDirectory($path, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setVisibility(string $path, string $visibility): void {
+    $this->inner->setVisibility($path, $visibility);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function visibility(string $path): FileAttributes {
+    return $this->inner->visibility($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function mimeType(string $path): FileAttributes {
+    return $this->inner->mimeType($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function lastModified(string $path): FileAttributes {
+    return $this->inner->lastModified($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function fileSize(string $path): FileAttributes {
+    return $this->inner->fileSize($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function listContents(string $path, bool $deep): iterable {
-    try {
-      $directories = [$this->prefixer->prefixDirectoryPath($path)];
-
-      while ($directories) {
-        $currentPrefix = array_shift($directories);
-
-        foreach ($this->client->getBlobsByHierarchy($currentPrefix) as $item) {
-          if ($item instanceof Blob) {
-            yield $this->normalizeBlobProperties($this->prefixer->stripPrefix($item->name), $item->properties);
-            continue;
-          }
-          yield new DirectoryAttributes(rtrim($this->prefixer->stripPrefix($item->name), '/'));
-
-          if ($deep) {
-            $directories[] = $item->name;
-          }
-        }
-      }
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToListContents::atLocation($path, $deep, $e);
-    }
+    return $this->inner->listContents($path, $deep);
   }
 
   /**
    * {@inheritdoc}
    */
   public function move(string $source, string $destination, Config $config): void {
-    try {
-      $this->copy($source, $destination, $config);
-      $this->delete($source);
-    }
-    catch (UnableToCopyFile | UnableToDeleteFile $e) {
-      throw UnableToMoveFile::fromLocationTo($source, $destination, $e);
-    }
+    $this->clearStats();
+    $this->inner->move($source, $destination, $config);
   }
 
   /**
@@ -407,36 +283,14 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter {
    */
   public function copy(string $source, string $destination, Config $config): void {
     $this->clearStats();
-    $sourceBlobClient = $this->client->getBlobClient($this->prefixer->prefixPath($source));
-    $targetBlobClient = $this->client->getBlobClient($this->prefixer->prefixPath($destination));
-
-    try {
-      $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
-    }
-    catch (BlobStorageException | GuzzleException $e) {
-      throw UnableToCopyFile::fromLocationTo($source, $destination, $e);
-    }
+    $this->inner->copy($source, $destination, $config);
   }
 
   /**
-   * Normalizes the given blob properties.
-   *
-   * @param string $path
-   *   The path, without the prefix.
-   * @param \AzureOss\Storage\Blob\Models\BlobProperties $properties
-   *   The properties.
-   *
-   * @return \League\Flysystem\FileAttributes
-   *   The file attributes.
+   * {@inheritdoc}
    */
-  private function normalizeBlobProperties(string $path, BlobProperties $properties): FileAttributes {
-    return new FileAttributes(
-      $path,
-      $properties->contentLength,
-      NULL,
-      $properties->lastModified->getTimestamp(),
-      $properties->contentType,
-    );
+  public function checksum(string $path, Config $config): string {
+    return $this->inner->checksum($path, $config);
   }
 
 }
