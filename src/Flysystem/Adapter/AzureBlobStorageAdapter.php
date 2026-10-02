@@ -7,339 +7,290 @@ namespace Drupal\helfi_azure_fs\Flysystem\Adapter;
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
 use AzureOss\Storage\Blob\Models\Blob;
-use AzureOss\Storage\Blob\Models\BlobProperties;
-use AzureOss\Storage\Blob\Models\UploadBlobOptions;
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter as InnerAdapter;
 use GuzzleHttp\Exception\GuzzleException;
-use League\Flysystem\Adapter\AbstractAdapter;
-use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
+use League\Flysystem\ChecksumProvider;
 use League\Flysystem\Config;
-use League\Flysystem\Util;
-
-use function compact;
-use function stream_get_contents;
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
+use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\PathPrefixer;
+use League\Flysystem\UnableToRetrieveMetadata;
 
 /**
  * The blob storage adapter.
  *
- *  This is originally from league/flysystem-azure-blob-storage:1.0.0,
- *  modified to work with azure-oss/storage.
+ * Decorates the azure-oss/storage-blob-flysystem adapter with stat(), which
+ * checks a file or directory with a single request and caches the results
+ * until the adapter changes anything.
  *
- * The azure-oss/azure-storage-php-adapter-flysystem requires 3.x version
- * of flysystem and Drupal only supports 2.x at the moment.
+ * @see \Drupal\helfi_azure_fs\StreamWrapper\AzureStreamWrapper::url_stat()
  */
-class AzureBlobStorageAdapter extends AbstractAdapter {
+final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider {
 
-  use NotSupportingVisibilityTrait;
+  /**
+   * The maximum number of cached stat() results.
+   */
+  private const int MAX_STATS = 1000;
+
+  /**
+   * The decorated adapter.
+   */
+  private readonly InnerAdapter $inner;
+
+  /**
+   * The path prefixer.
+   */
+  private readonly PathPrefixer $prefixer;
+
+  /**
+   * The results of stat(), keyed by path.
+   *
+   * Drupal checks the same paths repeatedly within a request, like the image
+   * style derivatives of a file once per image style and file field. This is
+   * cleared whenever the adapter changes anything, and lives as long as the
+   * adapter, so only for the current request.
+   *
+   * @var array<string, \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null>
+   */
+  private array $stats = [];
 
   /**
    * Constructs a new instance.
    *
    * @param \AzureOss\Storage\Blob\BlobContainerClient $client
    *   The container client.
-   * @param string|null $prefix
-   *   The prefix.
+   * @param string $prefix
+   *   The path prefix inside the container.
    */
   public function __construct(
-    protected BlobContainerClient $client,
-    ?string $prefix = NULL,
+    private readonly BlobContainerClient $client,
+    string $prefix = '',
   ) {
-    $this->setPathPrefix($prefix);
+    $this->prefixer = new PathPrefixer($prefix);
+    $this->inner = new InnerAdapter(
+      $client,
+      $prefix,
+      // Blob storage has no per-blob visibility: the access level is set for
+      // the whole container. Ignore it, since Drupal calls chmod() on every
+      // saved file.
+      visibilityHandling: InnerAdapter::ON_VISIBILITY_IGNORE,
+      // The blobs are served directly from the container. This also keeps
+      // the copies on the server side with SAS token credentials.
+      isPublicContainer: TRUE,
+    );
   }
 
   /**
-   * {@inheritdoc}
-   */
-  public function write($path, $contents, Config $config): array|false {
-    $data = $this->upload($path, $contents);
-
-    if (!$data) {
-      return FALSE;
-    }
-    return $data + compact('contents');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function writeStream($path, $resource, Config $config): array|false {
-    return $this->upload($path, $resource);
-  }
-
-  /**
-   * Upload the given file.
+   * Gets the attributes of the given file or directory with one request.
+   *
+   * Checking whether a path is a directory and then fetching its metadata
+   * takes one request each. Listing the blobs that start with the path
+   * returns both the blob with the same name and the "directory" prefix.
+   *
+   * The results are cached until the adapter changes anything.
    *
    * @param string $path
    *   The path.
-   * @param string|resource $contents
-   *   The contents.
    *
-   * @return array|false
-   *   The metadata.
+   * @return \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null
+   *   The attributes, or NULL if nothing exists in the given path.
    */
-  protected function upload(string $path, mixed $contents): array|false {
-    $destination = $this->applyPathPrefix($path);
-    $options = new UploadBlobOptions(
-      contentType: Util::guessMimeType($path, $contents),
-    );
-
-    try {
-      $this->client->getBlobClient($destination)
-        ->upload($contents, $options);
-
-      return [
-        'path' => $path,
-        'dirname' => Util::dirname($path),
-        'type' => 'file',
-      ];
+  public function stat(string $path): FileAttributes|DirectoryAttributes|null {
+    if (!array_key_exists($path, $this->stats)) {
+      if (count($this->stats) >= self::MAX_STATS) {
+        $this->clearStats();
+      }
+      $this->stats[$path] = $this->fetchStat($path);
     }
-    catch (BlobStorageException | GuzzleException) {
-    }
-    return FALSE;
+    return $this->stats[$path];
   }
 
   /**
-   * {@inheritdoc}
-   */
-  public function update($path, $contents, Config $config): array|false {
-    return $this->write($path, $contents, $config);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function updateStream($path, $resource, Config $config): array|false {
-    return $this->upload($path, $resource);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function rename($path, $newpath): bool {
-    return $this->copy($path, $newpath) && $this->delete($path);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function copy($path, $newpath): bool {
-    $source = $this->applyPathPrefix($path);
-    $destination = $this->applyPathPrefix($newpath);
-
-    $sourceBlobClient = $this->client->getBlobClient($source);
-    $targetBlobClient = $this->client->getBlobClient($destination);
-
-    try {
-      $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
-
-      return TRUE;
-    }
-    catch (BlobStorageException) {
-    }
-    return FALSE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function delete($path): bool {
-    try {
-      $this->client->getBlobClient($this->applyPathPrefix($path))
-        ->deleteIfExists();
-    }
-    catch (BlobStorageException | GuzzleException) {
-      return FALSE;
-    }
-    return TRUE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function deleteDir($dirname): bool {
-    foreach ($this->listContents($dirname, TRUE) as $file) {
-      $this->client->getBlobClient($this->applyPathPrefix($file['path']))
-        ->deleteIfExists();
-    }
-    return TRUE;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createDir($dirname, Config $config): array {
-    return ['path' => $dirname, 'type' => 'dir'];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function has($path): bool {
-    return (bool) $this->getMetadata($path);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function read($path): array|false {
-    $response = $this->readStream($path);
-
-    if (!isset($response['stream']) || !is_resource($response['stream'])) {
-      return $response;
-    }
-
-    $response['contents'] = stream_get_contents($response['stream']);
-    unset($response['stream']);
-
-    return $response;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function readStream($path): array|false {
-    $location = $this->applyPathPrefix($path);
-
-    try {
-      $response = $this->client->getBlobClient($location)
-        ->downloadStreaming();
-    }
-    catch (BlobStorageException | GuzzleException) {
-      return FALSE;
-    }
-
-    return $this->normalizeBlobProperties(
-        $path,
-        $response->properties
-      ) + ['stream' => $response->content->detach()];
-  }
-
-  /**
-   * Lists the directory content.
+   * Clears the cached stat() results.
    *
-   * @param string $directory
-   *   The directory to list content for.
-   * @param bool $recursive
-   *   Whether to loop recursively.
-   *
-   * @return \Generator<array>
-   *   The content list.
+   * Changing a blob can change the result of any path, like whether its
+   * parent "directory" exists.
    */
-  private function doListContents(string $directory, bool $recursive) : iterable {
-    $location = $this->applyPathPrefix($directory);
+  private function clearStats(): void {
+    $this->stats = [];
+  }
 
-    if (strlen($location) > 0) {
-      $location = rtrim($location, '/') . '/';
+  /**
+   * Fetches the attributes of the given file or directory.
+   *
+   * @param string $path
+   *   The path.
+   *
+   * @return \League\Flysystem\FileAttributes|\League\Flysystem\DirectoryAttributes|null
+   *   The attributes, or NULL if nothing exists in the given path.
+   */
+  private function fetchStat(string $path): FileAttributes|DirectoryAttributes|null {
+    $name = $this->prefixer->prefixPath($path);
+
+    if ($name === '') {
+      return new DirectoryAttributes($path);
     }
+    $file = NULL;
 
-    $directories = [$location];
-
-    while (!empty($directories)) {
-      $currentPrefix = array_shift($directories);
-
-      foreach ($this->client->getBlobsByHierarchy($currentPrefix) as $item) {
+    try {
+      // The listing contains the blob itself, the "directory" prefix and the
+      // siblings whose names start with the same name.
+      foreach ($this->client->getBlobsByHierarchy($name) as $item) {
         if ($item instanceof Blob) {
-          yield $this->normalizeBlobProperties($this->applyPathPrefix($item->name), $item->properties);
-        }
-        else {
-          yield $this->normalizeBlobProperties($this->applyPathPrefix($item->name), NULL);
-
-          if ($recursive) {
-            $directories[] = $item->name;
+          if ($item->name === $name) {
+            $file = new FileAttributes(
+              $path,
+              $item->properties->contentLength,
+              NULL,
+              $item->properties->lastModified?->getTimestamp(),
+              $item->properties->contentType,
+            );
           }
+          continue;
         }
-
+        // Directories take precedence like in the Flysystem stream wrapper.
+        if ($item->name === $name . '/') {
+          return new DirectoryAttributes($path);
+        }
       }
     }
+    catch (BlobStorageException | GuzzleException $e) {
+      throw UnableToRetrieveMetadata::create($path, 'stat', $e->getMessage(), $e);
+    }
+    return $file;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function listContents($directory = '', $recursive = FALSE): array {
-    try {
-      return iterator_to_array($this->doListContents($directory, $recursive));
-    }
-    catch (BlobStorageException | GuzzleException) {
-    }
-    return [];
+  public function fileExists(string $path): bool {
+    return $this->inner->fileExists($path);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMetadata($path): array|bool {
-    $path = $this->applyPathPrefix($path);
-
-    try {
-      $properties = $this->client->getBlobClient($path)->getProperties();
-
-      return $this->normalizeBlobProperties(
-        $path,
-        $properties,
-      );
-    }
-    catch (BlobStorageException | GuzzleException) {
-    }
-
-    if (in_array($path, ['css', 'js'])) {
-      return [
-        'type' => 'dir',
-        'path' => $path,
-      ];
-    }
-
-    // Drupal's Flysystem DrupalCacheAdapter incorrectly expects metadata
-    // to be an array, even though the interface defines array|false.
-    return [];
+  public function directoryExists(string $path): bool {
+    return $this->inner->directoryExists($path);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getSize($path): array|bool {
-    return $this->getMetadata($path);
+  public function write(string $path, string $contents, Config $config): void {
+    $this->clearStats();
+    $this->inner->write($path, $contents, $config);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMimetype($path): array|bool {
-    return $this->getMetadata($path);
+  public function writeStream(string $path, $contents, Config $config): void {
+    $this->clearStats();
+    $this->inner->writeStream($path, $contents, $config);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getTimestamp($path): array|bool {
-    return $this->getMetadata($path);
+  public function read(string $path): string {
+    return $this->inner->read($path);
   }
 
   /**
-   * Normalizes the given blob properties.
-   *
-   * @param string $path
-   *   The path.
-   * @param null|\AzureOss\Storage\Blob\Models\BlobProperties $properties
-   *   The properties.
-   *
-   * @return array
-   *   The normalized properties.
+   * {@inheritdoc}
    */
-  protected function normalizeBlobProperties(string $path, ?BlobProperties $properties): array {
-    $path = $this->removePathPrefix($path);
+  public function readStream(string $path) {
+    return $this->inner->readStream($path);
+  }
 
-    if (str_ends_with($path, '/')) {
-      return ['type' => 'dir', 'path' => rtrim($path, '/')];
-    }
+  /**
+   * {@inheritdoc}
+   */
+  public function delete(string $path): void {
+    $this->clearStats();
+    $this->inner->delete($path);
+  }
 
-    return [
-      'path' => $path,
-      'timestamp' => (int) $properties->lastModified->format('U'),
-      'dirname' => Util::dirname($path),
-      'mimetype' => $properties->contentType,
-      'size' => $properties->contentLength,
-      'type' => 'file',
-    ];
+  /**
+   * {@inheritdoc}
+   */
+  public function deleteDirectory(string $path): void {
+    $this->clearStats();
+    $this->inner->deleteDirectory($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function createDirectory(string $path, Config $config): void {
+    $this->inner->createDirectory($path, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setVisibility(string $path, string $visibility): void {
+    $this->inner->setVisibility($path, $visibility);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function visibility(string $path): FileAttributes {
+    return $this->inner->visibility($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function mimeType(string $path): FileAttributes {
+    return $this->inner->mimeType($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function lastModified(string $path): FileAttributes {
+    return $this->inner->lastModified($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function fileSize(string $path): FileAttributes {
+    return $this->inner->fileSize($path);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function listContents(string $path, bool $deep): iterable {
+    return $this->inner->listContents($path, $deep);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function move(string $source, string $destination, Config $config): void {
+    $this->clearStats();
+    $this->inner->move($source, $destination, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function copy(string $source, string $destination, Config $config): void {
+    $this->clearStats();
+    $this->inner->copy($source, $destination, $config);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function checksum(string $path, Config $config): string {
+    return $this->inner->checksum($path, $config);
   }
 
 }

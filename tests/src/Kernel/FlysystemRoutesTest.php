@@ -4,38 +4,36 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
-use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
-use Drupal\flysystem\FlysystemFactory;
-use Drupal\flysystem\Plugin\FlysystemUrlTrait;
-use Drupal\image\Entity\ImageStyle;
+use Drupal\flysystem\Adapter\AdapterDefinition;
+use Drupal\flysystem\Adapter\AdapterDriverInterface;
+use Drupal\flysystem\Adapter\FilesystemFactoryInterface;
+use Drupal\helfi_azure_fs\Plugin\Flysystem\Adapter\Azure;
+use Drupal\helfi_azure_fs\StreamWrapper\AzureStreamWrapper;
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\Tests\helfi_api_base\Traits\ApiTestTrait;
-use Drupal\Tests\TestFileCreationTrait;
-use League\Flysystem\AdapterInterface;
+use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemOperator;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Tests Azure adapter plugin.
+ * Tests the Azure adapter driver integration with Flysystem.
+ *
+ * These tests attempt to catch if Flysystem updates break the features we
+ * rely on.
  */
 #[Group('helfi_azure_fs')]
 #[RunTestsInSeparateProcesses]
 class FlysystemRoutesTest extends KernelTestBase {
 
-  use ProphecyTrait;
-  use ApiTestTrait;
-  use FlysystemUrlTrait;
-  use TestFileCreationTrait;
-
   /**
    * {@inheritdoc}
    */
   protected static $modules = [
+    'file',
     'image',
+    'key',
     'system',
     'flysystem',
     'helfi_azure_fs',
@@ -45,25 +43,12 @@ class FlysystemRoutesTest extends KernelTestBase {
    * {@inheritdoc}
    */
   public function register(ContainerBuilder $container): void {
-    parent::register($container);
-    // Register azure stream wrapper manually.
-    $container
-      ->register('flysystem_stream_wrapper.azure', 'Drupal\flysystem\FlysystemBridge')
-      ->addTag('stream_wrapper', ['scheme' => 'azure']);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setUp() : void {
-    parent::setUp();
-
-    // Skip itok validation.
-    $this->config('image.settings')->set('allow_insecure_derivatives', TRUE)->save();
-
+    // Flysystem registers the stream wrappers of the settings.php schemes
+    // when the container is built, so the settings must be defined before.
     $this->setSetting('flysystem', [
       'azure' => [
         'driver' => 'helfi_azure',
+        'public_url_base' => 'https://mock-name.blob.core.windows.net/mock-container',
         'config' => [
           'name' => 'mock-name',
           'token' => 'mock-token',
@@ -71,96 +56,117 @@ class FlysystemRoutesTest extends KernelTestBase {
           'endpointSuffix' => 'core.windows.net',
           'protocol' => 'https',
         ],
-        'cache' => TRUE,
       ],
     ]);
+    parent::register($container);
   }
 
   /**
-   * Tests getExternalUrl.
-   *
-   * This test attempts to catch if any flysystem updates
-   * break the features that we rely on.
+   * Tests that the driver is discovered and used for the 'azure' scheme.
    */
-  public function testFlysystemServeRoute() : void {
-    [$image] = $this->getTestFiles('image');
+  public function testAdapterDriver() : void {
+    /** @var \Drupal\flysystem\Adapter\AdapterDriverPluginManager $manager */
+    $manager = $this->container->get('plugin.manager.flysystem.adapter_driver');
+    $this->assertTrue($manager->hasDefinition('helfi_azure'));
 
-    $resource = fopen($image->uri, 'r');
-    $stat = fstat($resource);
-    $metadata = [
-      'path' => 'styles/img_style/azure/helfi_testikuva.png',
-      'dirname' => 'styles/img_style/azure',
-      'size' => $stat['size'],
-      'timestamp' => $stat['ctime'],
-      'type' => 'file',
-      'mimetype' => 'image/png',
-    ];
+    /** @var \Drupal\flysystem\Adapter\FilesystemFactoryInterface $factory */
+    $factory = $this->container->get('flysystem.filesystem_factory');
+    $this->assertInstanceOf(Azure::class, $factory->getDriver('azure'));
+    $this->assertInstanceOf(Filesystem::class, $factory->getFilesystem('azure'));
+    $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container', $factory->getDefinition('azure')->publicUrlBase);
 
-    $adapter = $this->prophesize(AdapterInterface::class);
-    $adapter
-      ->has(Argument::any())
-      ->willReturn(TRUE);
-
-    $adapter
-      ->readStream(Argument::any())
-      ->willReturn($metadata + [
-        'stream' => $resource,
-      ]);
-
-    $adapter
-      ->getMetadata(Argument::any())
-      ->willReturn($metadata);
-
-    // Visibility is not supported by azure adapter.
-    $adapter
-      ->getVisibility(Argument::any())
-      ->willThrow(new \LogicException("not supported"));
-
-    $this->container->set('flysystem_factory', $this->getFlysystemFactory($adapter->reveal()));
-
-    $imageStyle = ImageStyle::create([
-      'name' => 'img_style',
-    ]);
-    $imageStyle->save();
-
-    $uri = $imageStyle->buildUri('azure://helfi_testikuva.png');
-    $request = $this->getMockedRequest($this->getExternalUrl($uri));
-    $response = $this->processRequest($request);
-
-    $this->assertEquals(200, $response->getStatusCode());
-    $this->assertInstanceOf(BinaryFileResponse::class, $response);
-    $this->assertEquals('helfi_testikuva.png', $response->getFile()->getFileName());
+    // File URLs are generated from the public URL base.
+    $url = $this->container->get('file_url_generator')->generateAbsoluteString('azure://folder/test file.jpg');
+    $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container/folder/test%20file.jpg', $url);
   }
 
   /**
-   * Gets flysystem factory mock.
+   * Tests the image style derivative URLs.
    */
-  private function getFlysystemFactory(AdapterInterface $adapter): FlysystemFactory {
-    return new class($this->container, $adapter) extends FlysystemFactory {
+  public function testDerivativeUrl() : void {
+    $wrapper = $this->container->get('stream_wrapper_manager')->getViaScheme('azure');
+    $this->assertInstanceOf(AzureStreamWrapper::class, $wrapper);
 
-      /**
-       * Constructs a new instance.
-       */
+    // Store the files locally instead of the blob storage. Virtual file
+    // system doesn't support locking.
+    $filesystem = new Filesystem(new LocalFilesystemAdapter('vfs://root/azure', writeFlags: 0));
+    $wrapper->setFactory(new class($this->container->get('flysystem.filesystem_factory'), $filesystem) implements FilesystemFactoryInterface {
+
       public function __construct(
-        ContainerInterface $container,
-        private readonly AdapterInterface $adapter,
+        private readonly FilesystemFactoryInterface $inner,
+        private readonly FilesystemOperator $filesystem,
       ) {
-        parent::__construct(
-          $container->get('plugin.manager.flysystem'),
-          $container->get('stream_wrapper_manager'),
-          $container->get('cache.flysystem'),
-          $container->get('event_dispatcher'),
-        );
       }
 
       /**
-       * {@inheritDoc}
+       * {@inheritdoc}
        */
-      protected function getAdapter($scheme): AdapterInterface {
-        return $this->adapter;
+      public function getDriver(string $scheme): AdapterDriverInterface {
+        return $this->inner->getDriver($scheme);
       }
 
-    };
+      /**
+       * {@inheritdoc}
+       */
+      public function getDriverById(string $driverId): AdapterDriverInterface {
+        return $this->inner->getDriverById($driverId);
+      }
+
+      /**
+       * {@inheritdoc}
+       */
+      public function getSchemes(): array {
+        return $this->inner->getSchemes();
+      }
+
+      /**
+       * {@inheritdoc}
+       */
+      public function getFilesystem(string $scheme): FilesystemOperator {
+        return $this->filesystem;
+      }
+
+      /**
+       * {@inheritdoc}
+       */
+      public function hasScheme(string $scheme): bool {
+        return $this->inner->hasScheme($scheme);
+      }
+
+      /**
+       * {@inheritdoc}
+       */
+      public function getDefinition(string $scheme): AdapterDefinition {
+        return $this->inner->getDefinition($scheme);
+      }
+
+    });
+    $generator = $this->container->get('file_url_generator');
+
+    // Missing derivatives are generated by Drupal.
+    $url = $generator->generateAbsoluteString('azure://styles/thumbnail/azure/folder/missing file.jpg');
+    $this->assertStringStartsWith('http://localhost/', $url);
+    $this->assertStringEndsWith('/styles/thumbnail/azure/folder/missing%20file.jpg', $url);
+
+    // Existing derivatives are served from the blob storage.
+    $filesystem->write('styles/thumbnail/azure/folder/test file.jpg', 'derivative');
+    $url = $generator->generateAbsoluteString('azure://styles/thumbnail/azure/folder/test file.jpg');
+    $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container/styles/thumbnail/azure/folder/test%20file.jpg', $url);
+
+    // Other files are not affected.
+    $url = $generator->generateAbsoluteString('azure://folder/missing file.jpg');
+    $this->assertEquals('https://mock-name.blob.core.windows.net/mock-container/folder/missing%20file.jpg', $url);
+  }
+
+  /**
+   * Tests that the legacy image style route is still available.
+   */
+  public function testImageStyleRoute() : void {
+    $route = $this->container->get('router.route_provider')
+      ->getRouteByName('flysystem.image_style');
+
+    $this->assertEquals('/_flysystem/styles/{image_style}/{scheme}', $route->getPath());
+    $this->assertEquals('azure', $route->getDefault('required_derivative_scheme'));
   }
 
 }

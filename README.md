@@ -40,6 +40,8 @@ Add something like this to your `local.settings.php` file:
 $schemes = [
   'azure' => [
     'driver' => 'helfi_azure',
+    // Required by Flysystem 3 to generate file URLs.
+    'public_url_base' => 'https://[ insert account name here ].blob.core.windows.net/[ insert container name here ]',
     'config' => [
       'name' => '[ insert account name here ]',
       'token' => '[ insert sas token here ]',
@@ -47,11 +49,12 @@ $schemes = [
       'endpointSuffix' => 'core.windows.net',
       'protocol' => 'https',
     ],
-    'cache' => TRUE,
   ],
 ];
 $config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
 $settings['flysystem'] = $schemes;
+// Required to serve image style derivatives without file access checks.
+$settings['file_additional_public_schemes'] = ['azure'];
 $settings['is_azure'] = TRUE;
 ```
 

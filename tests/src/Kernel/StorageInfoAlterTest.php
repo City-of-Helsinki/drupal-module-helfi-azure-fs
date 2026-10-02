@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Kernel;
 
-use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Tests\field\Kernel\FieldKernelTestBase;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -24,20 +23,10 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
   protected static $modules = [
     'image',
     'file',
+    'key',
     'flysystem',
     'helfi_azure_fs',
   ];
-
-  /**
-   * {@inheritdoc}
-   */
-  public function register(ContainerBuilder $container) {
-    parent::register($container);
-    // Register azure stream wrapper manually.
-    $container
-      ->register('flysystem_stream_wrapper.azure', 'Drupal\flysystem\FlysystemBridge')
-      ->addTag('stream_wrapper', ['scheme' => 'azure']);
-  }
 
   /**
    * {@inheritdoc}
@@ -92,7 +81,7 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
     $this->config('helfi_azure_fs.settings')
       ->set('storage_scheme', 'azure')
       ->set('use_blob_storage', TRUE)->save();
-    drupal_flush_all_caches();
+    $this->container->get('entity_field.manager')->clearCachedFieldDefinitions();
 
     $this->assertScheme('azure');
 

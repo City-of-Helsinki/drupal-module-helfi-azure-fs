@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
-use Drupal\helfi_azure_fs\Flysystem\Azure;
+use Drupal\helfi_azure_fs\Plugin\Flysystem\Adapter\Azure;
 use Drupal\Tests\helfi_api_base\Traits\SecretsTrait;
 use Drupal\Tests\UnitTestCase;
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
 use League\Flysystem\Filesystem;
-use Psr\Log\LoggerInterface;
+use League\Flysystem\StorageAttributes;
+use League\Flysystem\UnableToListContents;
+use League\Flysystem\UnableToReadFile;
+use League\Flysystem\UnableToRetrieveMetadata;
+use League\Flysystem\UnableToWriteFile;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Tests Azure blob storage adapter.
- *
- * @group helfi_azure_fs
+ * Tests Azure blob storage adapter against a real storage account.
  */
+#[Group('helfi_azure_fs')]
 class AzureBlobStorageTest extends UnitTestCase {
 
   use SecretsTrait;
@@ -39,180 +45,232 @@ class AzureBlobStorageTest extends UnitTestCase {
       $this
         ->fail('You must define "flysystem_azure_connection_string" and "flysystem_azure_container_name" secrets. See README.md.');
     }
-    $configuration = [
+    $this->filesystem = $this->getFilesystem([
       'container' => $container,
       'connectionString' => $connectionString,
-
-    ];
-    $adapter = (new Azure($configuration, $this->prophesize(LoggerInterface::class)->reveal()))
-      ->getAdapter();
-    $this->filesystem = new Filesystem($adapter);
-    $this->filesystem->getConfig()->set('disable_asserts', TRUE);
+    ]);
   }
 
   /**
-   * Constructs a Filesystem object that throws guzzle exception.
+   * Constructs a filesystem.
+   *
+   * @param array<string, string> $configuration
+   *   The driver configuration.
+   *
+   * @return \League\Flysystem\Filesystem
+   *   The filesystem.
+   */
+  private function getFilesystem(array $configuration): Filesystem {
+    $adapter = (new Azure([], 'helfi_azure', []))->buildAdapter($configuration);
+    return new Filesystem($adapter);
+  }
+
+  /**
+   * Constructs a filesystem where every request fails.
    *
    * @return \League\Flysystem\Filesystem
    *   The filesystem.
    */
   private function getSutWithException(): Filesystem {
-    $configuration = [
+    return $this->getFilesystem([
       'container' => 'invalid',
+      // Points to a local storage emulator that is not running.
       // @see \AzureOss\Storage\Common\Helpers\ConnectionStringHelper
       'connectionString' => 'UseDevelopmentStorage=true',
-    ];
-    $adapter = (new Azure($configuration, $this->prophesize(LoggerInterface::class)->reveal()))
-      ->getAdapter();
-
-    $filesystem = new Filesystem($adapter);
-    $filesystem->getConfig()->set('disable_asserts', TRUE);
-
-    return $filesystem;
+    ]);
   }
 
   /**
    * Tests write and read.
    */
   public function testWritingAndReadingFile(): void {
-    // Make sure write(). exits gracefully when request fails.
-    $this->assertFalse($this->getSutWithException()->write('filename.txt', 'contents'));
-
-    $contents = 'with contents';
-    $filename = 'test/a_file.txt';
-    $this->assertTrue($this->filesystem->write($filename, $contents));
+    $filename = 'test/file.txt';
+    $contents = 'contents';
+    $this->filesystem->write($filename, $contents);
+    $this->assertTrue($this->filesystem->fileExists($filename));
     $this->assertEquals($contents, $this->filesystem->read($filename));
-    $this->assertTrue($this->filesystem->delete($filename));
-    $this->assertFalse($this->filesystem->has($filename));
+    $this->filesystem->delete($filename);
+    $this->assertFalse($this->filesystem->fileExists($filename));
   }
 
   /**
-   * Tests read with non-existing file.
+   * Tests that a failing write throws.
+   */
+  public function testWriteErrors(): void {
+    $this->expectException(UnableToWriteFile::class);
+    $this->getSutWithException()->write('filename.txt', 'contents');
+  }
+
+  /**
+   * Tests that reading a missing file throws.
    */
   public function testReadErrors(): void {
-    // Make sure read(). exits gracefully when request fails.
-    $this->assertFalse($this->getSutWithException()->read('filename.txt'));
-    $this->assertFalse($this->filesystem->read('not-existing.txt'));
+    $this->expectException(UnableToReadFile::class);
+    $this->filesystem->read('not-existing.txt');
   }
 
   /**
-   * Make sure we can update the file.
+   * Tests overwriting an existing file.
    */
-  public function testWritingAndUpdatingAndReadingFile(): void {
+  public function testOverwritingFile(): void {
+    $filename = 'test/file.txt';
     $contents = 'new contents';
-    $filename = 'test/a_file.txt';
-    $this->assertTrue($this->filesystem->write($filename, 'original contents'));
-    $this->assertTrue($this->filesystem->update($filename, $contents));
+    $this->filesystem->write($filename, 'original contents');
+    $this->filesystem->write($filename, $contents);
     $this->assertEquals($contents, $this->filesystem->read($filename));
-    $this->assertTrue($this->filesystem->delete($filename));
-    $this->assertFalse($this->filesystem->has($filename));
+    $this->filesystem->delete($filename);
+    $this->assertFalse($this->filesystem->fileExists($filename));
   }
 
   /**
    * Tests writeStream() and readStream().
    */
   public function testWritingAndReadingStream(): void {
-    $contents = 'with contents';
-    $filename = 'test/a_file.txt';
-    $handle = tmpfile();
-    fwrite($handle, $contents);
-    $this->assertTrue($this->filesystem->writeStream($filename, $handle));
-    is_resource($handle) && fclose($handle);
+    $filename = 'test/file.txt';
+    $handle = fopen('php://temp', 'w+b');
+    $this->assertIsResource($handle);
+    fwrite($handle, 'contents');
+    rewind($handle);
+    $this->filesystem->writeStream($filename, $handle);
+
     $handle = $this->filesystem->readStream($filename);
     $this->assertIsResource($handle);
-    $this->assertEquals($contents, stream_get_contents($handle));
+    $this->assertEquals('contents', stream_get_contents($handle));
 
-    $contents = 'with contents 2';
-    $handle = tmpfile();
-    fwrite($handle, $contents);
-    $this->assertTrue($this->filesystem->updateStream($filename, $handle));
-    is_resource($handle) && fclose($handle);
-    $handle = $this->filesystem->readStream($filename);
-    $this->assertIsResource($handle);
-    $this->assertEquals($contents, stream_get_contents($handle));
-
-    $this->assertTrue($this->filesystem->delete($filename));
-    $this->assertFalse($this->filesystem->has($filename));
+    $this->filesystem->delete($filename);
+    $this->assertFalse($this->filesystem->fileExists($filename));
   }
 
   /**
-   * Make sure we can delete files that don't exist.
+   * Make sure deleting a missing file doesn't throw.
    */
   public function testDeletingFilesThatDontExist(): void {
-    // Make sure http error fails gracefully.
-    $this->assertFalse($this->getSutWithException()->delete('test/file.txt'));
-
-    $this->assertTrue($this->filesystem->delete('test/non-existent-filename.txt'));
+    $this->filesystem->delete('test/non-existent-filename.txt');
+    $this->assertFalse($this->filesystem->fileExists('test/non-existent-filename.txt'));
   }
 
   /**
    * Tests copy().
    */
   public function testCopyingFiles(): void {
-    $this->assertNotFalse($this->filesystem->write('test/source.txt', 'contents'));
+    $this->filesystem->write('test/source.txt', 'contents');
     $this->filesystem->copy('test/source.txt', 'test/destination.txt');
-    $this->assertTrue($this->filesystem->has('test/destination.txt'));
+    $this->assertTrue($this->filesystem->fileExists('test/destination.txt'));
     $this->assertEquals('contents', $this->filesystem->read('test/destination.txt'));
+
+    $this->filesystem->delete('test/source.txt');
+    $this->filesystem->delete('test/destination.txt');
   }
 
   /**
-   * Tests creating a new directory.
+   * Tests move().
    */
-  public function testCreatingDirectory(): void {
-    $this->assertTrue($this->filesystem->createDir('dirname'));
+  public function testMovingFile(): void {
+    $this->filesystem->write('test/path/to/file.txt', 'contents');
+    $this->filesystem->move('test/path/to/file.txt', 'test/new/path.txt');
+    $this->assertTrue($this->filesystem->fileExists('test/new/path.txt'));
+    $this->assertFalse($this->filesystem->fileExists('test/path/to/file.txt'));
+
+    $this->filesystem->delete('test/new/path.txt');
+    $this->assertFalse($this->filesystem->fileExists('test/new/path.txt'));
   }
 
   /**
-   * Tests listContents().
+   * Tests directories and listContents().
    */
   public function testListingDirectory(): void {
-    // Make sure listContents() fails gracefully on http error.
-    $this->assertEmpty($this->getSutWithException()->listContents('test'));
+    // Directories are virtual, so creating one is a no-op.
+    $this->filesystem->createDirectory('dirname');
 
     $this->filesystem->write('test/path/to/file.txt', 'a file');
     $this->filesystem->write('test/path/to/another/file.txt', 'a file');
-    $this->assertCount(2, $this->filesystem->listContents('test/path/to'));
-    $this->assertCount(3, $this->filesystem->listContents('test/path/to', TRUE));
-    $this->assertCount(4, $this->filesystem->listContents('test/path', TRUE));
+    $this->assertTrue($this->filesystem->directoryExists('test/path/to'));
+    $this->assertCount(2, $this->filesystem->listContents('test/path/to')->toArray());
+    $this->assertCount(3, $this->filesystem->listContents('test/path/to', TRUE)->toArray());
+    $this->assertCount(4, $this->filesystem->listContents('test/path', TRUE)->toArray());
 
-    $this->assertTrue($this->filesystem->deleteDir('test/path/to'));
-    $this->assertFalse($this->filesystem->has('test/path/to/file.txt'));
-    $this->assertFalse($this->filesystem->has('test/path/to/another/file.txt'));
+    $paths = $this->filesystem->listContents('test/path/to')
+      ->map(fn (StorageAttributes $item) => $item->path())
+      ->toArray();
+    $this->assertEqualsCanonicalizing(['test/path/to/file.txt', 'test/path/to/another'], $paths);
+
+    $this->filesystem->deleteDirectory('test/path/to');
+    $this->assertFalse($this->filesystem->fileExists('test/path/to/file.txt'));
+    $this->assertFalse($this->filesystem->fileExists('test/path/to/another/file.txt'));
+    $this->assertFalse($this->filesystem->directoryExists('test/path/to'));
+  }
+
+  /**
+   * Tests that a failing listing throws.
+   */
+  public function testListingErrors(): void {
+    $this->expectException(UnableToListContents::class);
+    $this->getSutWithException()->listContents('test')->toArray();
   }
 
   /**
    * Test metadata getters.
    */
   public function testMetadataGetters(): void {
-    // Make sure getMetadata() fails gracefully on http error.
-    $this->assertEquals([], $this->getSutWithException()->getMetadata('test/file.txt'));
-
     $filename = 'test/file.txt';
     $this->filesystem->write($filename, 'contents');
-    $this->assertIsInt($this->filesystem->getTimestamp($filename));
-    $this->assertIsArray($this->filesystem->getMetadata($filename));
-    $this->assertIsInt($this->filesystem->getSize($filename));
-    $this->assertIsString($this->filesystem->getMimetype($filename));
+    $this->assertIsInt($this->filesystem->lastModified($filename));
+    $this->assertEquals(8, $this->filesystem->fileSize($filename));
+    $this->assertEquals('text/plain', $this->filesystem->mimeType($filename));
 
     $this->filesystem->delete($filename);
-    $this->assertFalse($this->filesystem->has($filename));
-
-    foreach (['js', 'css'] as $dir) {
-      $this->assertEquals(['type' => 'dir', 'path' => $dir], $this->filesystem->getMetadata($dir));
-    }
+    $this->assertFalse($this->filesystem->fileExists($filename));
   }
 
   /**
-   * Make sure we can rename a file.
+   * Tests stat().
    */
-  public function testRenamingFile(): void {
-    $this->filesystem->write('test/path/to/file.txt', 'contents');
-    $this->filesystem->rename('test/path/to/file.txt', 'test/new/path.txt');
-    $this->assertTrue($this->filesystem->has('test/new/path.txt'));
-    $this->assertFalse($this->filesystem->has('test/path/to/file.txt'));
+  public function testStat(): void {
+    $adapter = (new Azure([], 'helfi_azure', []))->buildAdapter([
+      'container' => $this->getSecret('flysystem_azure_container_name'),
+      'connectionString' => $this->getSecret('flysystem_azure_connection_string'),
+    ]);
+    $this->filesystem->write('test/stat/file.txt', 'contents');
 
-    $this->filesystem->delete('test/new/path.txt');
-    $this->assertFalse($this->filesystem->has('test/new/path.txt'));
+    $attributes = $adapter->stat('test/stat/file.txt');
+    $this->assertInstanceOf(FileAttributes::class, $attributes);
+    $this->assertEquals(8, $attributes->fileSize());
+    $this->assertIsInt($attributes->lastModified());
+    $this->assertInstanceOf(DirectoryAttributes::class, $adapter->stat('test/stat'));
+    $this->assertInstanceOf(DirectoryAttributes::class, $adapter->stat(''));
+    // Blobs that only start with the path don't exist.
+    $this->assertNull($adapter->stat('test/stat/file'));
+    $this->assertNull($adapter->stat('test/stat/missing.txt'));
+
+    // The results are cached until the adapter changes something.
+    $this->assertSame($attributes, $adapter->stat('test/stat/file.txt'));
+    $this->filesystem->write('test/stat/file.txt', 'new contents');
+    $attributes = $adapter->stat('test/stat/file.txt');
+    $this->assertEquals(12, $attributes->fileSize());
+
+    $this->filesystem->delete('test/stat/file.txt');
+    $this->assertNull($adapter->stat('test/stat/file.txt'));
+    $this->assertNull($adapter->stat('test/stat'));
+  }
+
+  /**
+   * Tests that failing stat requests throw.
+   */
+  public function testStatErrors(): void {
+    $adapter = (new Azure([], 'helfi_azure', []))->buildAdapter([
+      'container' => 'invalid',
+      'connectionString' => 'UseDevelopmentStorage=true',
+    ]);
+    $this->expectException(UnableToRetrieveMetadata::class);
+    $adapter->stat('test/file.txt');
+  }
+
+  /**
+   * Tests that failing metadata requests throw.
+   */
+  public function testMetadataErrors(): void {
+    $this->expectException(UnableToRetrieveMetadata::class);
+    $this->getSutWithException()->fileSize('test/file.txt');
   }
 
 }

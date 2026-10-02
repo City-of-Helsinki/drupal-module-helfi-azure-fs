@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\helfi_azure_fs\Unit;
 
+use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
@@ -12,15 +13,15 @@ use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\helfi_azure_fs\AzureFileSystem;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use org\bovigo\vfs\vfsStream;
 
 /**
  * Tests AzureFileSystem.
- *
- * @group helfi_azure_fs
  */
+#[Group('helfi_azure_fs')]
 class AzureFileSystemTest extends UnitTestCase {
 
   use ProphecyTrait;
@@ -100,9 +101,8 @@ class AzureFileSystemTest extends UnitTestCase {
 
   /**
    * Tests chmod.
-   *
-   * @dataProvider chmodFolderData
    */
+  #[DataProvider('chmodFolderData')]
   public function testChmodSkipFsOperations(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -118,7 +118,7 @@ class AzureFileSystemTest extends UnitTestCase {
   /**
    * Tests fallback operation.
    */
-  #[DataProvider(methodName: 'chmodFolderData')]
+  #[DataProvider('chmodFolderData')]
   public function testSkipOperationsFallback(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -126,11 +126,38 @@ class AzureFileSystemTest extends UnitTestCase {
     // Make sure decorated service is called when 'skipFsOperations'
     // is disabled.
     $decorated = $this->prophesize(FileSystemInterface::class);
-    $decorated->chmod($uri, NULL)
+    $decorated->chmod($uri)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+    $decorated->chmod($uri, 0644)
       ->shouldBeCalled()
       ->willReturn(TRUE);
 
-    $this->getSut($decorated->reveal(), new Settings([]))->chmod($uri);
+    $sut = $this->getSut($decorated->reveal(), new Settings([]));
+    $this->assertTrue($sut->chmod($uri));
+    $this->assertTrue($sut->chmod($uri, 0644));
+  }
+
+  /**
+   * Tests that other operations are delegated to the decorated service.
+   */
+  public function testDelegatesOperations() : void {
+    $directory = 'azure://folder';
+    $decorated = $this->prophesize(FileSystemInterface::class);
+    $decorated->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+    $decorated->saveData('data', 'azure://folder/file.txt', FileExists::Replace)
+      ->shouldBeCalled()
+      ->willReturn('azure://folder/file.txt');
+    $decorated->delete('azure://folder/file.txt')
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
+
+    $sut = $this->getSut($decorated->reveal(), new Settings(['is_azure' => TRUE]));
+    $this->assertTrue($sut->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY));
+    $this->assertEquals('azure://folder/file.txt', $sut->saveData('data', 'azure://folder/file.txt', FileExists::Replace));
+    $this->assertTrue($sut->delete('azure://folder/file.txt'));
   }
 
   /**
@@ -155,7 +182,7 @@ class AzureFileSystemTest extends UnitTestCase {
   /**
    * Tests mkdir with skipFsOperations.
    */
-  #[DataProvider(methodName: 'chmodFolderData')]
+  #[DataProvider('chmodFolderData')]
   public function testMkdirSkipFsOperations(array $structure, string $uri) : void {
     vfsStream::setup('dir');
     vfsStream::create($structure);
@@ -166,24 +193,27 @@ class AzureFileSystemTest extends UnitTestCase {
     $decorated->mkdir($uri, NULL, FALSE, NULL)
       ->shouldBeCalled()
       ->willReturn(TRUE);
+    $decorated->mkdir($uri, 0755, TRUE, NULL)
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
 
-    $this->getSut($decorated->reveal(), new Settings([]))->mkdir($uri);
+    $sut = $this->getSut($decorated->reveal(), new Settings([]));
+    $this->assertTrue($sut->mkdir($uri));
+    $this->assertTrue($sut->mkdir($uri, 0755, TRUE));
   }
 
   /**
-   * Tests mkdir with scheme.
+   * Tests that URIs with a scheme are created by the decorated service.
    */
   public function testMkdirWithScheme() : void {
-    vfsStream::setup('dir');
     $streamWrapperManager = $this->getStreamWrapperManagerMock('vfs');
     $uri = 'vfs://dir/subdir';
     $decorated = $this->prophesize(FileSystemInterface::class);
     $decorated->mkdir($uri, NULL, FALSE, NULL)
-      ->shouldNotBeCalled();
+      ->shouldBeCalled()
+      ->willReturn(TRUE);
     $sut = $this->getSut($decorated->reveal(), new Settings(['is_azure' => TRUE]), $streamWrapperManager);
     $this->assertTrue($sut->mkdir($uri));
-    $this->assertTrue(file_exists($uri));
-    $this->assertFilePermissions(0777, $uri);
   }
 
   /**
@@ -204,10 +234,14 @@ class AzureFileSystemTest extends UnitTestCase {
     $this->assertTrue(file_exists($uri));
     $this->assertFilePermissions(0777, $uri);
 
-    $uri = 'vfs://dir/subdir/subdir2';
+    $uri = 'vfs://dir/subdir/subdir2/subdir3';
     $this->assertTrue($sut->mkdir($uri, recursive: TRUE));
     $this->assertTrue(file_exists($uri));
+    $this->assertFilePermissions(0777, 'vfs://dir/subdir/subdir2');
     $this->assertFilePermissions(0777, $uri);
+
+    // Creating an existing directory fails.
+    $this->assertFalse(@$sut->mkdir($uri));
   }
 
 }
