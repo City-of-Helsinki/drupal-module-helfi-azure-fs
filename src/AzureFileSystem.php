@@ -7,6 +7,7 @@ namespace Drupal\helfi_azure_fs;
 use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 
 /**
@@ -19,10 +20,7 @@ use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
  * We check whether we're operating on Azure environment and
  * fallback to normal filesystem operations on any other environment.
  *
- * Everything else is delegated to the decorated service, which is the
- * Flysystem file system that handles the Flysystem schemes, like azure://.
- *
- * @see \Drupal\flysystem\FileSystem\FlysystemFileSystem
+ * Everything else is delegated to the decorated service.
  */
 final class AzureFileSystem implements FileSystemInterface {
 
@@ -56,11 +54,7 @@ final class AzureFileSystem implements FileSystemInterface {
    */
   public function chmod($uri, $mode = NULL) : bool {
     if (!$this->skipFsOperations) {
-      // Let the decorated service use its own default mode. Flysystem's
-      // file system doesn't accept NULL.
-      return $mode === NULL ?
-        $this->decorated->chmod($uri) :
-        $this->decorated->chmod($uri, $mode);
+      return $this->decorated->chmod($uri, $mode);
     }
     return TRUE;
   }
@@ -80,11 +74,7 @@ final class AzureFileSystem implements FileSystemInterface {
     if ($this->skipFsOperations && !$this->streamWrapperManager::getScheme($uri)) {
       return $this->mkdirCall($uri, 0777, $recursive, $context);
     }
-    // Let the decorated service use its own default mode. Flysystem's file
-    // system doesn't accept NULL.
-    return $mode === NULL ?
-      $this->decorated->mkdir($uri, recursive: $recursive, context: $context) :
-      $this->decorated->mkdir($uri, $mode, $recursive, $context);
+    return $this->decorated->mkdir($uri, $mode, $recursive, $context);
   }
 
   /**
@@ -114,28 +104,28 @@ final class AzureFileSystem implements FileSystemInterface {
   /**
    * {@inheritdoc}
    */
-  public function moveUploadedFile($filename, $uri) {
+  public function moveUploadedFile($filename, $uri) : bool {
     return $this->decorated->moveUploadedFile($filename, $uri);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function unlink($uri, $context = NULL) {
+  public function unlink($uri, $context = NULL) : bool {
     return $this->decorated->unlink($uri, $context);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function realpath($uri) {
+  public function realpath($uri) : string|false {
     return $this->decorated->realpath($uri);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function dirname($uri) {
+  public function dirname($uri) : string {
     return $this->decorated->dirname($uri);
   }
 
@@ -154,21 +144,22 @@ final class AzureFileSystem implements FileSystemInterface {
   /**
    * {@inheritdoc}
    */
-  public function rmdir($uri, $context = NULL) {
+  public function rmdir($uri, $context = NULL) : bool {
     return $this->decorated->rmdir($uri, $context);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function tempnam($directory, $prefix) {
+  public function tempnam($directory, $prefix) : string|false {
     return $this->decorated->tempnam($directory, $prefix);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function copy($source, $destination, $fileExists = FileExists::Rename) {
+  public function copy($source, $destination, $fileExists = FileExists::Rename) : string {
+    $this->prepareBlobDirectory($destination);
     return $this->decorated->copy($source, $destination, $fileExists);
   }
 
@@ -189,42 +180,64 @@ final class AzureFileSystem implements FileSystemInterface {
   /**
    * {@inheritdoc}
    */
-  public function move($source, $destination, $fileExists = FileExists::Rename) {
+  public function move($source, $destination, $fileExists = FileExists::Rename) : string {
+    $this->prepareBlobDirectory($destination);
     return $this->decorated->move($source, $destination, $fileExists);
+  }
+
+  /**
+   * Prepares the directory of the given blob storage destination.
+   *
+   * The core file system requires the destination directory to exist, but
+   * blob storage has no directories: they only exist while they have files.
+   * Creating the directory makes it exist for the current request.
+   *
+   * @param string $destination
+   *   The destination file or directory.
+   *
+   * @see \Drupal\helfi_azure_fs\StreamWrapper\AzureStreamWrapper::mkdir()
+   */
+  private function prepareBlobDirectory(string $destination) : void {
+    if (StreamWrapperManager::getScheme($destination) !== BlobStorage::SCHEME) {
+      return;
+    }
+    $directory = $this->decorated->dirname($destination);
+    $this->decorated->prepareDirectory($directory, self::CREATE_DIRECTORY);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function saveData($data, $destination, $fileExists = FileExists::Rename) {
+  public function saveData($data, $destination, $fileExists = FileExists::Rename) : string {
+    $this->prepareBlobDirectory($destination);
     return $this->decorated->saveData($data, $destination, $fileExists);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function prepareDirectory(&$directory, $options = self::MODIFY_PERMISSIONS) {
+  public function prepareDirectory(&$directory, $options = self::MODIFY_PERMISSIONS) : bool {
     return $this->decorated->prepareDirectory($directory, $options);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function createFilename($basename, $directory) {
+  public function createFilename($basename, $directory) : string {
     return $this->decorated->createFilename($basename, $directory);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getDestinationFilename($destination, $fileExists) {
+  public function getDestinationFilename($destination, $fileExists) : string|false {
     return $this->decorated->getDestinationFilename($destination, $fileExists);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getTempDirectory() {
+  public function getTempDirectory() : string {
     return $this->decorated->getTempDirectory();
   }
 

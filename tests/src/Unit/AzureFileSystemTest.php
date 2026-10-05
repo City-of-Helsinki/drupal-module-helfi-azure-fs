@@ -126,7 +126,7 @@ class AzureFileSystemTest extends UnitTestCase {
     // Make sure decorated service is called when 'skipFsOperations'
     // is disabled.
     $decorated = $this->prophesize(FileSystemInterface::class);
-    $decorated->chmod($uri)
+    $decorated->chmod($uri, NULL)
       ->shouldBeCalled()
       ->willReturn(TRUE);
     $decorated->chmod($uri, 0644)
@@ -147,6 +147,10 @@ class AzureFileSystemTest extends UnitTestCase {
     $decorated->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)
       ->shouldBeCalled()
       ->willReturn(TRUE);
+    // The blob storage directory is prepared before saving.
+    $decorated->dirname('azure://folder/file.txt')
+      ->shouldBeCalled()
+      ->willReturn('azure://folder');
     $decorated->saveData('data', 'azure://folder/file.txt', FileExists::Replace)
       ->shouldBeCalled()
       ->willReturn('azure://folder/file.txt');

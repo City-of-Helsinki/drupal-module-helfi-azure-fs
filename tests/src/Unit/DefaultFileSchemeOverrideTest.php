@@ -20,7 +20,7 @@ class DefaultFileSchemeOverrideTest extends UnitTestCase {
    */
   public function testLoadOverrides(): void {
     $settings = [
-      'flysystem' => ['azure' => []],
+      'helfi_azure_fs' => ['name' => 'name', 'container' => 'container'],
     ];
     // Blob storage disabled.
     $this->assertEquals(

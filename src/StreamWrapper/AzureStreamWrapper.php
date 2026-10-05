@@ -4,131 +4,514 @@ declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs\StreamWrapper;
 
-use Drupal\flysystem\Exception\AdapterConfigurationException;
-use Drupal\flysystem\StreamWrapper\FlysystemStreamWrapper;
-use Drupal\helfi_azure_fs\Flysystem\Adapter\AzureBlobStorageAdapter;
-use League\Flysystem\DirectoryAttributes;
-use League\Flysystem\FilesystemException;
-use League\Flysystem\Visibility;
-use League\Flysystem\WhitespacePathNormalizer;
+use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
+use Drupal\Core\StreamWrapper\PublicStream;
+use Drupal\Core\StreamWrapper\StreamWrapperInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\helfi_azure_fs\BlobStorage;
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
- * The stream wrapper for Azure Blob Storage schemes.
+ * The azure:// stream wrapper.
  *
- * Flysystem routes image style derivatives of remote adapters through Drupal,
- * which then streams the derivative from the blob storage on every request.
+ * PHP creates the instances for the stream and file operations itself,
+ * without constructor arguments, so the services are fetched from the
+ * container.
  *
- * This serves existing derivatives directly from the blob storage instead, and
- * only routes the missing ones through Drupal, so they are generated on the
- * first request without blocking the page that renders them.
- *
- * @see https://helsinkisolutionoffice.atlassian.net/browse/UHF-8204
- * @see \Drupal\helfi_azure_fs\HelfiAzureFsServiceProvider
+ * Files are buffered into a temporary stream: reading downloads the whole
+ * blob, and writing uploads it when the stream is closed.
  */
-final class AzureStreamWrapper extends FlysystemStreamWrapper {
+final class AzureStreamWrapper implements StreamWrapperInterface {
 
   /**
-   * The external URLs of image style derivatives, keyed by URI.
+   * The stream context.
    *
-   * The derivative URLs can be built multiple times per request and checking
-   * whether the derivative exists requires a request to the blob storage.
-   *
-   * @var array<string, string>
+   * @var resource|null
    */
-  private array $derivativeUrls = [];
+  public $context;
+
+  /**
+   * The URI of the current stream.
+   */
+  private string $uri = '';
+
+  /**
+   * The buffered contents of the opened file.
+   *
+   * @var resource|null
+   */
+  private $handle = NULL;
+
+  /**
+   * Whether the opened file is written.
+   */
+  private bool $writable = FALSE;
+
+  /**
+   * Whether the opened file has unsaved changes.
+   */
+  private bool $dirty = FALSE;
+
+  /**
+   * The entries of the opened directory.
+   *
+   * @var string[]
+   */
+  private array $entries = [];
+
+  /**
+   * Gets the path inside the container.
+   *
+   * @param string|null $uri
+   *   The URI, or NULL to use the current one.
+   *
+   * @return string
+   *   The path.
+   */
+  private function getTarget(?string $uri = NULL): string {
+    [, $target] = explode('://', $uri ?? $this->uri, 2) + [1 => ''];
+    return BlobStorage::normalize($target);
+  }
 
   /**
    * {@inheritdoc}
+   */
+  public static function getType(): int {
+    return StreamWrapperInterface::NORMAL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getName(): TranslatableMarkup {
+    return new TranslatableMarkup('Azure Blob Storage');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getDescription(): TranslatableMarkup {
+    return new TranslatableMarkup('Files stored in Azure Blob Storage.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUri($uri): void {
+    $this->uri = $uri;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getUri(): string {
+    return $this->uri;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Existing image style derivatives are served from the blob storage. The
+   * missing ones are routed through Drupal, which generates them on the
+   * first request.
+   *
+   * @see \Drupal\helfi_azure_fs\Controller\ImageStyleDownloadController
    */
   public function getExternalUrl(): string {
     $target = $this->getTarget();
 
-    if (!str_starts_with($target, 'styles/')) {
-      return parent::getExternalUrl();
+    if (str_starts_with($target, 'styles/') && !$this->exists($target)) {
+      $path = implode('/', array_map('rawurlencode', explode('/', $target)));
+      return \Drupal::request()->getSchemeAndHttpHost() . base_path() . PublicStream::basePath() . '/' . $path;
     }
-
-    if (!isset($this->derivativeUrls[$this->uri])) {
-      $this->derivativeUrls[$this->uri] = $this->getBlobUrl($target) ?? parent::getExternalUrl();
-    }
-    return $this->derivativeUrls[$this->uri];
+    return \Drupal::service(BlobStorage::class)->getPublicUrl($target);
   }
 
   /**
-   * Gets the blob storage URL of the given file, if it exists.
+   * Checks whether the given file exists.
    *
    * @param string $target
-   *   The path of the file.
+   *   The path.
    *
-   * @return string|null
-   *   The URL, or NULL if the file doesn't exist or can't be served
-   *   directly from the blob storage.
+   * @return bool
+   *   TRUE if the file exists.
    */
-  private function getBlobUrl(string $target): ?string {
-    $scheme = $this->getScheme();
-
+  private function exists(string $target): bool {
     try {
-      $definition = $this->getFactory()->getDefinition($scheme);
+      return \Drupal::service(BlobStorage::class)->stat($target) !== NULL;
+    }
+    catch (BlobStorageException | GuzzleException) {
+      return FALSE;
+    }
+  }
 
-      if ($definition->publicUrlBase === NULL || $definition->visibility === 'private') {
-        return NULL;
+  /**
+   * {@inheritdoc}
+   */
+  public function realpath(): string|false {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function dirname($uri = NULL): string {
+    $uri ??= $this->uri;
+    [$scheme] = explode('://', $uri, 2);
+    $dirname = dirname($this->getTarget($uri));
+
+    return $scheme . '://' . ($dirname === '.' ? '' : $dirname);
+  }
+
+  /**
+   * Triggers a warning, unless errors are suppressed.
+   *
+   * @param string $message
+   *   The message.
+   * @param int $options
+   *   The stream options.
+   */
+  private function warn(string $message, int $options = STREAM_REPORT_ERRORS): void {
+    if ($options & STREAM_REPORT_ERRORS) {
+      trigger_error($message, E_USER_WARNING);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_open($path, $mode, $options, &$opened_path): bool {
+    $this->uri = $path;
+    $target = $this->getTarget();
+    $mode = str_replace(['b', 't'], '', $mode);
+    $this->writable = $mode !== 'r';
+    $this->dirty = in_array($mode[0], ['w', 'x', 'c'], TRUE);
+
+    $handle = fopen('php://temp', 'w+b');
+    if ($handle === FALSE) {
+      return FALSE;
+    }
+    $this->handle = $handle;
+
+    if ($mode[0] === 'x' && $this->exists($target)) {
+      $this->warn("$path already exists", $options);
+      return FALSE;
+    }
+
+    // Load the existing contents when reading, appending or updating.
+    if (in_array($mode[0], ['r', 'a'], TRUE) || $mode === 'c+') {
+      try {
+        $contents = \Drupal::service(BlobStorage::class)->read($target)->detach();
+        if (is_resource($contents)) {
+          stream_copy_to_stream($contents, $this->handle);
+          fclose($contents);
+        }
       }
-
-      if (!$this->getFactory()->getFilesystem($scheme)->fileExists($target)) {
-        return NULL;
+      catch (BlobStorageException | GuzzleException $e) {
+        if ($mode[0] === 'r') {
+          $this->warn("Unable to open $path: " . $e->getMessage(), $options);
+          return FALSE;
+        }
+      }
+      if ($mode[0] === 'a') {
+        fseek($this->handle, 0, SEEK_END);
+      }
+      else {
+        rewind($this->handle);
       }
     }
-    catch (AdapterConfigurationException | FilesystemException) {
-      return NULL;
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_read($count): string|false {
+    return fread($this->handle, max(1, (int) $count));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_write($data): int {
+    if (!$this->writable) {
+      return 0;
     }
-    return rtrim($definition->publicUrlBase, '/') . '/' . $this->encodeExternalPath($target);
+    $this->dirty = TRUE;
+    return (int) fwrite($this->handle, $data);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_eof(): bool {
+    return feof($this->handle);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_seek($offset, $whence = SEEK_SET): bool {
+    return fseek($this->handle, $offset, $whence) === 0;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_tell(): int|false {
+    return ftell($this->handle);
   }
 
   /**
    * {@inheritdoc}
    *
-   * Flysystem checks whether the path is a directory and then fetches the
-   * file metadata, taking up to four requests per stat. This is called for
-   * every file_exists(), is_dir(), filesize() etc., so do it with one.
+   * The contents are uploaded when the stream is closed: the upload takes the
+   * ownership of the buffer and closes it.
+   */
+  public function stream_flush(): bool {
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Uploads the buffered contents.
+   */
+  public function stream_close(): void {
+    if (!is_resource($this->handle)) {
+      return;
+    }
+    $handle = $this->handle;
+    $this->handle = NULL;
+
+    if (!$this->dirty) {
+      fclose($handle);
+      return;
+    }
+    rewind($handle);
+
+    try {
+      $mimeType = \Drupal::service('file.mime_type.guesser')->guessMimeType($this->uri) ?? 'application/octet-stream';
+      \Drupal::service(BlobStorage::class)->write($this->getTarget(), $handle, $mimeType);
+    }
+    catch (BlobStorageException | GuzzleException $e) {
+      $this->warn("Unable to write $this->uri: " . $e->getMessage());
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * @return array<int|string, int>|false
+   *   The stat array.
+   */
+  public function stream_stat(): array|false {
+    $stat = fstat($this->handle);
+    return $stat === FALSE ? FALSE : $this->buildStat(FALSE, $stat['size'], time());
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_lock($operation): bool {
+    // Blobs can't be locked, but don't make the callers fail.
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_metadata($path, $option, $value): bool {
+    // Blob storage has no permissions or owners. touch() creates the file.
+    if ($option === STREAM_META_TOUCH && !$this->exists($this->getTarget($path))) {
+      try {
+        \Drupal::service(BlobStorage::class)->write($this->getTarget($path), '', 'application/octet-stream');
+      }
+      catch (BlobStorageException | GuzzleException) {
+        return FALSE;
+      }
+    }
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_set_option($option, $arg1, $arg2): bool {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_truncate($new_size): bool {
+    $this->dirty = TRUE;
+    return ftruncate($this->handle, max(0, (int) $new_size));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function stream_cast($cast_as) {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function unlink($path): bool {
+    try {
+      \Drupal::service(BlobStorage::class)->delete($this->getTarget($path));
+      return TRUE;
+    }
+    catch (BlobStorageException | GuzzleException $e) {
+      $this->warn("Unable to delete $path: " . $e->getMessage());
+      return FALSE;
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Copies the blob on the server side and deletes the source.
+   */
+  public function rename($path_from, $path_to): bool {
+    try {
+      \Drupal::service(BlobStorage::class)->copy($this->getTarget($path_from), $this->getTarget($path_to));
+      \Drupal::service(BlobStorage::class)->delete($this->getTarget($path_from));
+      return TRUE;
+    }
+    catch (BlobStorageException | GuzzleException $e) {
+      $this->warn("Unable to rename $path_from to $path_to: " . $e->getMessage());
+      return FALSE;
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * The directories exist implicitly as the prefixes of the blob names, so
+   * the created directory only exists for the current request until a file is
+   * written in it.
+   */
+  public function mkdir($path, $mode, $options): bool {
+    \Drupal::service(BlobStorage::class)->createDirectory($this->getTarget($path));
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * The directories disappear once they don't have any files.
+   */
+  public function rmdir($path, $options): bool {
+    try {
+      if (\Drupal::service(BlobStorage::class)->listDirectory($this->getTarget($path))) {
+        $this->warn("$path is not empty", $options);
+        return FALSE;
+      }
+      return TRUE;
+    }
+    catch (BlobStorageException | GuzzleException $e) {
+      $this->warn("Unable to remove $path: " . $e->getMessage(), $options);
+      return FALSE;
+    }
+  }
+
+  /**
+   * {@inheritdoc}
    *
    * @return array<int|string, int>|false
    *   The stat array, or FALSE if the path doesn't exist.
    */
-  // phpcs:ignore Drupal.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
-  public function url_stat($path, $flags) {
-    $this->uri = $path;
-    $scheme = $this->getScheme();
-
+  public function url_stat($path, $flags): array|false {
     try {
-      $definition = $this->getFactory()->getDefinition($scheme);
-      $adapter = $this->getFactory()->getDriver($scheme)->buildAdapter($definition->config);
-
-      if (!$adapter instanceof AzureBlobStorageAdapter) {
-        return parent::url_stat($path, $flags);
-      }
-      $attributes = $adapter->stat((new WhitespacePathNormalizer())->normalizePath($this->getTarget()));
+      $stat = \Drupal::service(BlobStorage::class)->stat($this->getTarget($path));
     }
-    catch (AdapterConfigurationException | FilesystemException) {
-      $attributes = NULL;
+    catch (BlobStorageException | GuzzleException) {
+      $stat = NULL;
     }
 
-    if ($attributes === NULL) {
+    if ($stat === NULL) {
       if (!($flags & STREAM_URL_STAT_QUIET)) {
         trigger_error("stat(): stat failed for $path", E_USER_WARNING);
       }
       return FALSE;
     }
+    return $this->buildStat($stat['directory'], $stat['size'], $stat['mtime']);
+  }
 
-    if ($attributes instanceof DirectoryAttributes) {
-      return $this->buildStatForDirectory();
+  /**
+   * Builds the stat array.
+   *
+   * @param bool $directory
+   *   Whether the path is a directory.
+   * @param int $size
+   *   The size.
+   * @param int $mtime
+   *   The modification time.
+   *
+   * @return array<int|string, int>
+   *   The stat array.
+   */
+  private function buildStat(bool $directory, int $size, int $mtime): array {
+    // Everything is readable and writable, since blob storage has no
+    // permissions.
+    $stat = [
+      'dev' => 0,
+      'ino' => 0,
+      'mode' => $directory ? 0040777 : 0100666,
+      'nlink' => 0,
+      'uid' => 0,
+      'gid' => 0,
+      'rdev' => 0,
+      'size' => $size,
+      'atime' => $mtime,
+      'mtime' => $mtime,
+      'ctime' => $mtime,
+      'blksize' => -1,
+      'blocks' => -1,
+    ];
+    return array_merge(array_values($stat), $stat);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function dir_opendir($path, $options): bool {
+    try {
+      $this->entries = \Drupal::service(BlobStorage::class)->listDirectory($this->getTarget($path));
+      return TRUE;
     }
-    // Blob storage has no per-blob visibility.
-    $mode = 0100000 | ($this->getSchemeVisibilityFallback() === Visibility::PUBLIC ? 0644 : 0600);
+    catch (BlobStorageException | GuzzleException $e) {
+      $this->warn("Unable to open $path: " . $e->getMessage());
+      return FALSE;
+    }
+  }
 
-    return $this->buildStat(
-      mode: $mode,
-      size: $attributes->fileSize() ?? 0,
-      mtime: $attributes->lastModified() ?? 0,
-    );
+  /**
+   * {@inheritdoc}
+   */
+  public function dir_readdir(): string|false {
+    $entry = current($this->entries);
+    next($this->entries);
+    return $entry;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function dir_rewinddir(): bool {
+    reset($this->entries);
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function dir_closedir(): bool {
+    $this->entries = [];
+    return TRUE;
   }
 
 }

@@ -23,8 +23,6 @@ class StorageInfoAlterTest extends FieldKernelTestBase {
   protected static $modules = [
     'image',
     'file',
-    'key',
-    'flysystem',
     'helfi_azure_fs',
   ];
 

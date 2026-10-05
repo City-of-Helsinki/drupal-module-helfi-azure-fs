@@ -9,6 +9,7 @@ use Drupal\Core\Config\ConfigFactoryOverrideInterface;
 use Drupal\Core\Config\StorableConfigBase;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\helfi_azure_fs\BlobStorage;
 
 /**
  * Overrides the default file scheme when using Azure blob storage.
@@ -38,10 +39,7 @@ final class DefaultFileSchemeOverride implements ConfigFactoryOverrideInterface 
   protected function useBlobStorage(): bool {
     // We can't use 'helfi_azure_fs.settings:use_blob_storage' here because
     // it depends on config factory, which is not available here.
-    if (!$flysystem = $this->settings->get('flysystem', NULL)) {
-      return FALSE;
-    }
-    return isset($flysystem['azure']);
+    return BlobStorage::getConfigurationFromSettings($this->settings) !== NULL;
   }
 
   /**
