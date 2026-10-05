@@ -56,6 +56,7 @@ class AzureSchemeTest extends KernelTestBase {
       'name' => 'account',
       'container' => 'container',
       'token' => 'token',
+      'public_url_base' => 'https://account.blob.core.windows.net/container',
     ] : NULL);
     parent::register($container);
   }

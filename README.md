@@ -42,10 +42,8 @@ $settings['helfi_azure_fs'] = [
   'container' => '[ insert container name here ]',
   // Either a SAS token, an account key or a connection string.
   'token' => '[ insert sas token here ]',
-  'endpointSuffix' => 'core.windows.net',
-  'protocol' => 'https',
-  // Optional, defaults to https://[name].blob.[endpointSuffix]/[container].
-  // 'public_url_base' => 'https://cdn.example.com',
+  // The URL the files are served from.
+  'public_url_base' => 'https://[ insert account name here ].blob.core.windows.net/[ insert container name here ]',
 ];
 $config['helfi_azure_fs.settings']['use_blob_storage'] = TRUE;
 // Serve the image style derivatives without the file access checks, like the
@@ -79,12 +77,12 @@ The correct values can be found by running `printenv | grep BLOB` inside a OpenS
 
 You can find these values from your `local.settings.php` file. The test files are written under `test/` in the container and deleted afterwards.
 
-## Upgrading from 3.x
+## Upgrading to 3.x
 
 Earlier versions used the [Flysystem](https://www.drupal.org/project/flysystem) module.
 
 - Run the database updates: `helfi_azure_fs_update_90401()` uninstalls the Flysystem module. Export the configuration afterwards, so the deployment doesn't reinstall it.
-- Replace `$settings['flysystem']['azure']` with `$settings['helfi_azure_fs']` in `settings.php`: move the `config` values to the top level, and `public_url_base` too if you've set it. The Flysystem settings are no longer used, so the blob storage isn't enabled until this is done. Keep `$settings['file_additional_public_schemes'] = ['azure'];`.
+- Replace `$settings['flysystem']['azure']` with `$settings['helfi_azure_fs']` in `settings.php`: move the `config` values and `public_url_base` to the top level. The Flysystem settings are no longer used, so the blob storage isn't enabled until this is done. Keep `$settings['file_additional_public_schemes'] = ['azure'];`.
 - The file URIs (`azure://...`) and the blob names don't change, so no files need to be migrated.
 
 ## Contact

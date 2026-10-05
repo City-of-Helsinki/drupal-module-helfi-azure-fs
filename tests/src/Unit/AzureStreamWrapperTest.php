@@ -32,7 +32,12 @@ class AzureStreamWrapperTest extends UnitTestCase {
   private function getSut() : AzureStreamWrapper {
     $container = new ContainerBuilder();
     $container->set(BlobStorage::class, new BlobStorage(new Settings([
-      'helfi_azure_fs' => ['name' => 'account', 'container' => 'container', 'token' => 'token'],
+      'helfi_azure_fs' => [
+        'name' => 'account',
+        'container' => 'container',
+        'token' => 'token',
+        'public_url_base' => 'https://account.blob.core.windows.net/container',
+      ],
     ])));
     \Drupal::setContainer($container);
 

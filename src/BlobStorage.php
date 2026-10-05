@@ -23,8 +23,8 @@ use Psr\Http\Message\StreamInterface;
  *   'container' => '[container]',
  *   // Either a SAS token, an account key or a connection string.
  *   'token' => '[SAS token]',
- *   'endpointSuffix' => 'core.windows.net',
- *   'protocol' => 'https',
+ *   // The URL the files are served from.
+ *   'public_url_base' => 'https://[account name].blob.core.windows.net/[container]',
  * ];
  * @endcode
  *
@@ -98,13 +98,7 @@ final class BlobStorage {
   public static function getConfigurationFromSettings(Settings $settings): ?array {
     $configuration = $settings->get(self::SETTINGS_KEY);
 
-    if (empty($configuration)) {
-      return NULL;
-    }
-    return $configuration + [
-      'endpointSuffix' => 'core.windows.net',
-      'protocol' => 'https',
-    ];
+    return empty($configuration) ? NULL : $configuration;
   }
 
   /**
@@ -116,8 +110,10 @@ final class BlobStorage {
   private function getConfiguration(): array {
     $configuration = self::getConfigurationFromSettings($this->settings);
 
-    if (empty($configuration['container'])) {
-      throw new \LogicException(sprintf('The "container" is missing from $settings[\'%s\'].', self::SETTINGS_KEY));
+    foreach (['container', 'public_url_base'] as $key) {
+      if (empty($configuration[$key])) {
+        throw new \LogicException(sprintf('The "%s" is missing from $settings[\'%s\'].', $key, self::SETTINGS_KEY));
+      }
     }
     return $configuration;
   }
@@ -162,17 +158,13 @@ final class BlobStorage {
     if (!empty($configuration['connectionString'])) {
       return $configuration['connectionString'];
     }
-    $endpoint = sprintf('%s://%s.blob.%s', $configuration['protocol'], $configuration['name'], $configuration['endpointSuffix']);
-
     if (!empty($configuration['token'])) {
-      return sprintf('BlobEndpoint=%s;SharedAccessSignature=%s;', $endpoint, $configuration['token']);
+      return sprintf('BlobEndpoint=https://%s.blob.core.windows.net;SharedAccessSignature=%s;', $configuration['name'], $configuration['token']);
     }
     return sprintf(
-      'DefaultEndpointsProtocol=%s;AccountName=%s;AccountKey=%s;EndpointSuffix=%s;',
-      $configuration['protocol'],
+      'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net;',
       $configuration['name'],
       $configuration['key'] ?? '',
-      $configuration['endpointSuffix'],
     );
   }
 
@@ -188,64 +180,7 @@ final class BlobStorage {
   public function getPublicUrl(string $path): string {
     $path = implode('/', array_map('rawurlencode', explode('/', self::normalize($path))));
 
-    return rtrim($this->getPublicUrlBase(), '/') . '/' . $path;
-  }
-
-  /**
-   * Gets the public URL of the container.
-   *
-   * @return string
-   *   The URL, for example https://[name].blob.core.windows.net/[container].
-   */
-  private function getPublicUrlBase(): string {
-    $configuration = $this->getConfiguration();
-
-    if (!empty($configuration['public_url_base'])) {
-      return $configuration['public_url_base'];
-    }
-
-    if (!empty($configuration['connectionString'])) {
-      $values = self::parseConnectionString($configuration['connectionString']);
-
-      if (!empty($values['BlobEndpoint'])) {
-        return rtrim($values['BlobEndpoint'], '/') . '/' . $configuration['container'];
-      }
-      $configuration = [
-        'protocol' => $values['DefaultEndpointsProtocol'] ?? $configuration['protocol'],
-        'name' => $values['AccountName'] ?? '',
-        'endpointSuffix' => $values['EndpointSuffix'] ?? $configuration['endpointSuffix'],
-      ] + $configuration;
-    }
-    return sprintf(
-      '%s://%s.blob.%s/%s',
-      $configuration['protocol'],
-      $configuration['name'],
-      $configuration['endpointSuffix'],
-      $configuration['container'],
-    );
-  }
-
-  /**
-   * Parses the given connection string.
-   *
-   * @param string $connectionString
-   *   The connection string.
-   *
-   * @return array<string, string>
-   *   The values, keyed by name.
-   */
-  private static function parseConnectionString(string $connectionString): array {
-    $values = [];
-
-    foreach (explode(';', $connectionString) as $part) {
-      // The values, like the account key, can contain '='.
-      [$key, $value] = array_pad(explode('=', $part, 2), 2, '');
-
-      if (trim($key) !== '') {
-        $values[trim($key)] = trim($value);
-      }
-    }
-    return $values;
+    return rtrim($this->getConfiguration()['public_url_base'], '/') . '/' . $path;
   }
 
   /**

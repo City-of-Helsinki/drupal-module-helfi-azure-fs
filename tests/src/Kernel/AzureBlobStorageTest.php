@@ -67,9 +67,14 @@ class AzureBlobStorageTest extends KernelTestBase {
     }
     // The stream wrapper is registered when the container is built, so the
     // settings must be defined before.
+    // The files are served from the blob endpoint of the connection string.
+    if (!preg_match('/(?:^|;)BlobEndpoint=([^;]+)/', $connectionString, $matches)) {
+      $this->fail('The "flysystem_azure_connection_string" secret must have a BlobEndpoint. See README.md.');
+    }
     $this->setSetting('helfi_azure_fs', [
       'connectionString' => $connectionString,
       'container' => $containerName,
+      'public_url_base' => rtrim($matches[1], '/') . '/' . $containerName,
     ]);
     $this->setSetting('file_additional_public_schemes', ['azure']);
     parent::register($container);

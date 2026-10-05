@@ -41,17 +41,11 @@ class BlobStorageTest extends UnitTestCase {
    *   The data.
    */
   public static function configurationData() : array {
-    $defaults = ['endpointSuffix' => 'core.windows.net', 'protocol' => 'https'];
-
     return [
       'not configured' => [[], NULL],
       'settings' => [
         ['helfi_azure_fs' => ['name' => 'name', 'container' => 'container', 'token' => 'token']],
-        ['name' => 'name', 'container' => 'container', 'token' => 'token'] + $defaults,
-      ],
-      'settings with the defaults overridden' => [
-        ['helfi_azure_fs' => ['container' => 'container', 'endpointSuffix' => 'example.com', 'protocol' => 'http']],
-        ['container' => 'container', 'endpointSuffix' => 'example.com', 'protocol' => 'http'],
+        ['name' => 'name', 'container' => 'container', 'token' => 'token'],
       ],
       'Flysystem settings are not used' => [
         [
@@ -91,62 +85,54 @@ class BlobStorageTest extends UnitTestCase {
 
   /**
    * Tests the public URLs.
-   *
-   * @param array<string, string> $configuration
-   *   The configuration.
-   * @param string $expected
-   *   The expected URL of 'folder/file name #1.jpg'.
    */
   #[DataProvider('publicUrlData')]
-  public function testPublicUrl(array $configuration, string $expected) : void {
-    $storage = new BlobStorage(new Settings(['helfi_azure_fs' => $configuration]));
-
-    $this->assertSame($expected, $storage->getPublicUrl('folder/file name #1.jpg'));
-    $this->assertSame($expected, $storage->getPublicUrl('/folder//file name #1.jpg'));
+  public function testPublicUrl(string $publicUrlBase, string $path, string $expected) : void {
+    $storage = new BlobStorage(new Settings([
+      'helfi_azure_fs' => ['container' => 'container', 'public_url_base' => $publicUrlBase],
+    ]));
+    $this->assertSame($expected, $storage->getPublicUrl($path));
   }
 
   /**
    * The data provider for testPublicUrl().
    *
-   * @return array<string, array{array<string, string>, string}>
+   * @return array<string, array{string, string, string}>
    *   The data.
    */
   public static function publicUrlData() : array {
-    $path = 'folder/file%20name%20%231.jpg';
+    $base = 'https://account.blob.core.windows.net/container';
 
     return [
-      'account' => [
-        ['name' => 'account', 'container' => 'container', 'token' => 'token'],
-        "https://account.blob.core.windows.net/container/$path",
-      ],
-      'public URL base' => [
-        ['name' => 'account', 'container' => 'container', 'public_url_base' => 'https://cdn.example.com/files/'],
-        "https://cdn.example.com/files/$path",
-      ],
-      'account key connection string' => [
-        [
-          'connectionString' => 'DefaultEndpointsProtocol=http;AccountName=account;AccountKey=a2V5==;EndpointSuffix=example.com',
-          'container' => 'container',
-        ],
-        "http://account.blob.example.com/container/$path",
-      ],
-      'SAS connection string' => [
-        [
-          'connectionString' => 'BlobEndpoint=https://account.blob.core.windows.net/;SharedAccessSignature=sv=1&sig=2',
-          'container' => 'container',
-        ],
-        "https://account.blob.core.windows.net/container/$path",
-      ],
+      'file' => [$base, 'file.txt', "$base/file.txt"],
+      'encoded' => [$base, 'folder/file name #1.jpg', "$base/folder/file%20name%20%231.jpg"],
+      'normalized' => [$base, '/folder//file.txt', "$base/folder/file.txt"],
+      'trailing slash' => ["$base/", 'file.txt', "$base/file.txt"],
+      'CDN' => ['https://cdn.example.com/files', 'file.txt', 'https://cdn.example.com/files/file.txt'],
     ];
   }
 
   /**
-   * Tests that a missing container is reported.
+   * Tests that the missing required settings are reported.
    */
-  public function testMissingContainer() : void {
+  #[DataProvider('missingSettingData')]
+  public function testMissingSetting(string $key) : void {
+    $configuration = ['container' => 'container', 'public_url_base' => 'https://cdn.example.com'];
+    unset($configuration[$key]);
+
     $this->expectException(\LogicException::class);
-    $this->expectExceptionMessage('The "container" is missing');
-    (new BlobStorage(new Settings(['helfi_azure_fs' => ['name' => 'account']])))->getPublicUrl('file.txt');
+    $this->expectExceptionMessage(sprintf('The "%s" is missing', $key));
+    (new BlobStorage(new Settings(['helfi_azure_fs' => $configuration])))->getPublicUrl('file.txt');
+  }
+
+  /**
+   * The data provider for testMissingSetting().
+   *
+   * @return array<int, array{string}>
+   *   The data.
+   */
+  public static function missingSettingData() : array {
+    return [['container'], ['public_url_base']];
   }
 
 }
