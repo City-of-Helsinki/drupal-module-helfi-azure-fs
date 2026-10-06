@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\helfi_azure_fs\StreamWrapper;
 
 use AzureOss\Storage\Blob\Exceptions\BlobStorageException;
-use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\StreamWrapper\StreamWrapperInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\helfi_azure_fs\BlobStorage;
@@ -113,7 +112,10 @@ final class AzureStreamWrapper implements StreamWrapperInterface {
    *
    * Existing image style derivatives are served from the blob storage. The
    * missing ones are routed through Drupal, which generates them on the
-   * first request.
+   * first request. Their URL is the URL of the same path in the public files,
+   * like /sites/default/files/styles/[style]/azure/[file], generated with the
+   * file URL generator, so the hook_file_url_alter() implementations, like the
+   * helfi_proxy's asset path prefix, are applied to it too.
    *
    * @see \Drupal\helfi_azure_fs\Controller\ImageStyleDownloadController
    */
@@ -121,8 +123,7 @@ final class AzureStreamWrapper implements StreamWrapperInterface {
     $target = $this->getTarget();
 
     if (str_starts_with($target, 'styles/') && !$this->exists($target)) {
-      $path = implode('/', array_map('rawurlencode', explode('/', $target)));
-      return \Drupal::request()->getSchemeAndHttpHost() . base_path() . PublicStream::basePath() . '/' . $path;
+      return \Drupal::service('file_url_generator')->generateAbsoluteString('public://' . $target);
     }
     return \Drupal::service(BlobStorage::class)->getPublicUrl($target);
   }
