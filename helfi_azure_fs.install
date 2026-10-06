@@ -80,3 +80,17 @@ function helfi_azure_fs_update_90205() : FormattableMarkup {
 function helfi_azure_fs_update_90206() : FormattableMarkup {
   return new FormattableMarkup('This update hook has been replaced by the "drush helfi:azure:repair-files" command. Run it manually instead.', []);
 }
+
+/**
+ * Uninstall the Flysystem module.
+ *
+ * The azure:// scheme is now provided by this module's stream wrapper.
+ */
+function helfi_azure_fs_update_90401() : FormattableMarkup {
+  if (!\Drupal::moduleHandler()->moduleExists('flysystem')) {
+    return new FormattableMarkup('The Flysystem module is not installed.', []);
+  }
+  \Drupal::service('module_installer')->uninstall(['flysystem']);
+
+  return new FormattableMarkup('Uninstalled the Flysystem module. Export the configuration to remove it from core.extension.yml.', []);
+}

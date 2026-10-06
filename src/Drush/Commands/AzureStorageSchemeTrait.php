@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\helfi_azure_fs\Drush\Commands;
 
+use Drupal\helfi_azure_fs\BlobStorage;
+
 /**
  * Provides a helper to resolve the configured Blob storage scheme.
  *
@@ -24,7 +26,7 @@ trait AzureStorageSchemeTrait {
     if (!$config->get('use_blob_storage')) {
       return NULL;
     }
-    return $config->get('storage_scheme') ?: 'azure';
+    return $config->get('storage_scheme') ?: BlobStorage::SCHEME;
   }
 
 }

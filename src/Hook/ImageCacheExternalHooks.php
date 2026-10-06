@@ -7,6 +7,7 @@ namespace Drupal\helfi_azure_fs\Hook;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\Hook\Attribute\Hook;
+use Drupal\helfi_azure_fs\BlobStorage;
 use Symfony\Component\DependencyInjection\Attribute\AutowireServiceClosure;
 
 /**
@@ -39,7 +40,7 @@ final class ImageCacheExternalHooks {
     }
     // Override the file scheme. This will cause all external images
     // to be stored in configured Azure blob storage.
-    $alter['scheme'] = 'azure';
+    $alter['scheme'] = BlobStorage::SCHEME;
   }
 
 }

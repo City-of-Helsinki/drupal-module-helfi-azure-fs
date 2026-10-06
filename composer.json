@@ -6,7 +6,7 @@
     "minimum-stability": "dev",
     "require": {
         "drupal/flysystem": "^3.0",
-        "azure-oss/storage-blob-flysystem": "^2.2"
+        "azure-oss/storage-blob": "^2.2"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
@@ -14,7 +14,6 @@
     },
     "conflict": {
         "drupal/core": "<11.0",
-        "drupal/flysystem": "<3.0",
-        "league/flysystem": "<3.35.3"
+        "drupal/flysystem": "<3.0"
     }
 }

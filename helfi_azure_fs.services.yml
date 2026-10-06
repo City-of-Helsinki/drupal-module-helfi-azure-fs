@@ -3,6 +3,10 @@ services:
     autoconfigure: true
     autowire: true
 
+  Drupal\helfi_azure_fs\BlobStorage: ~
+
+  Drupal\helfi_azure_fs\Routing\RouteSubscriber: ~
+
   Drupal\helfi_azure_fs\Config\DefaultFileSchemeOverride:
     tags:
       - { name: config.factory.override, priority: 5 }
@@ -15,4 +19,3 @@ services:
       - '@azure_file_system.inner'
       - '@stream_wrapper_manager'
       - '@settings'
-
