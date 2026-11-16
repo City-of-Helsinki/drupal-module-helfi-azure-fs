@@ -30,9 +30,9 @@ final class HelfiAzureFsServiceProvider implements ServiceModifierInterface {
    * @see helfi_azure_fs_update_90401()
    */
   public function alter(ContainerBuilder $container): void {
-    // Flysystem replaces the core file system, which doesn't handle copying
-    // files to a directory or the directory names of the root files like the
-    // core file system does, and doesn't accept a NULL mode.
+    // Flysystem 3.x replaces the core file system, which doesn't handle
+    // copying files to a directory or the directory names of the root files
+    // like the core file system does, and doesn't accept a NULL mode.
     // @todo Remove once we remove the Flysystem dependency from composer.json.
     $fileSystem = $container->getDefinition('file_system');
     if ($fileSystem->getClass() === 'Drupal\\flysystem\\FileSystem\\FlysystemFileSystem') {
