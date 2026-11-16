@@ -62,15 +62,14 @@ final class RepairFilesCommand extends Command {
     $current = 0;
 
     while (TRUE) {
-      $query = $storage->getQuery();
-      $query
+      $ids = $storage->getQuery()
+        ->accessCheck(FALSE)
         ->condition('uri', $scheme . '://%', 'LIKE')
         ->condition('status', FileInterface::STATUS_PERMANENT)
         ->condition('fid', $current, '>')
         ->sort('fid')
-        ->range(0, 50);
-      $query->accessCheck(FALSE);
-      $ids = $query->execute();
+        ->range(0, 50)
+        ->execute();
 
       if (!$ids) {
         break;
