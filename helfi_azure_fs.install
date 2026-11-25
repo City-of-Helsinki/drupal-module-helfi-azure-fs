@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\Utility\UpdateException;
 
 /**
  * Implements hook_install().
@@ -84,13 +85,17 @@ function helfi_azure_fs_update_90206() : FormattableMarkup {
 /**
  * Uninstall the Flysystem module.
  *
- * The azure:// scheme is now provided by this module's stream wrapper.
+ * The azure:// scheme is now provided by this module's stream wrapper. This
+ * module no longer requires Flysystem, so the uninstall fails if its code is
+ * missing.
  */
 function helfi_azure_fs_update_90401() : FormattableMarkup {
   if (!\Drupal::moduleHandler()->moduleExists('flysystem')) {
     return new FormattableMarkup('The Flysystem module is not installed.', []);
   }
-  \Drupal::service('module_installer')->uninstall(['flysystem']);
+  if (!\Drupal::service('module_installer')->uninstall(['flysystem'])) {
+    throw new UpdateException('Unable to uninstall the Flysystem module. Require drupal/flysystem in composer.json until the database updates have been run.');
+  }
 
   return new FormattableMarkup('Uninstalled the Flysystem module. Export the configuration to remove it from core.extension.yml.', []);
 }

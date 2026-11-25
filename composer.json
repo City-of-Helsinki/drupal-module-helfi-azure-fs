@@ -5,7 +5,6 @@
     "license": "GPL-2.0-or-later",
     "minimum-stability": "dev",
     "require": {
-        "drupal/flysystem": "^2.0 || ^3.0",
         "azure-oss/storage-blob": "^2.2"
     },
     "require-dev": {
