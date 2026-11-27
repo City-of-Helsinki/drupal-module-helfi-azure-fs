@@ -35,6 +35,7 @@ class AzureBlobStorageTest extends KernelTestBase {
    */
   protected static $modules = [
     'system',
+    'user',
     'file',
     'image',
     'helfi_azure_fs',
@@ -86,6 +87,7 @@ class AzureBlobStorageTest extends KernelTestBase {
   protected function setUp(): void {
     parent::setUp();
     $this->installConfig(['system', 'image']);
+    $this->installEntitySchema('file');
 
     $this->directory = 'test/' . $this->randomMachineName();
     $this->fileSystem = $this->container->get('file_system');
@@ -324,6 +326,12 @@ class AzureBlobStorageTest extends KernelTestBase {
       // The route doesn't vary by the file, so the redirect is not cached.
       $this->assertSame(0, $response->getCacheableMetadata()->getCacheMaxAge());
       $this->assertFileExists($style->buildUri($image));
+
+      // The existing derivative is redirected to without the source.
+      $this->fileSystem->delete($image);
+      $response = $controller->deliver($request, 'azure', $style, 'azure');
+      $this->assertInstanceOf(TrustedRedirectResponse::class, $response);
+      $this->assertSame($this->storage->getPublicUrl((string) StreamWrapperManager::getTarget($style->buildUri($image))), $response->getTargetUrl());
     }
   }
 

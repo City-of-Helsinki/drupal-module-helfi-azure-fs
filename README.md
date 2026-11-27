@@ -60,7 +60,7 @@ The correct values can be found by running `printenv | grep BLOB` inside a OpenS
 
 - `BlobStorage` talks to the container with [azure-oss/storage-blob](https://packagist.org/packages/azure-oss/storage-blob). It checks files and directories with a single request and caches the results for the duration of the request.
 - `AzureStreamWrapper` provides the `azure://` scheme, so the core file system works with it as is.
-- Existing image style derivatives are served directly from the blob storage. The missing ones are routed through Drupal, which generates them and redirects to the blob storage.
+- Existing image style derivatives are served directly from the blob storage. The missing ones are routed through Drupal, which generates them and redirects to the blob storage. Generating a derivative invalidates the cache tags of its source file, so the pages that linked to Drupal are rendered again with the blob storage URL. Existing derivatives requested through Drupal are redirected to without loading them.
 - Directories exist implicitly as the prefixes of the blob names, so empty directories don't exist.
 - Files are buffered into a temporary stream: reading downloads the whole blob and writing uploads it when the stream is closed.
 
