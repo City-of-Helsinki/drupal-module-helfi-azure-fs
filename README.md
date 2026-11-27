@@ -79,9 +79,9 @@ You can find these values from your `local.settings.php` file. The test files ar
 
 ## Upgrading to 3.x
 
-Earlier versions used the [Flysystem](https://www.drupal.org/project/flysystem) module. It's still required until it's uninstalled everywhere, but either 2.x or 3.x works, so it doesn't have to be updated.
+Earlier versions used the [Flysystem](https://www.drupal.org/project/flysystem) module, which is no longer required.
 
-- Run the database updates: `helfi_azure_fs_update_90401()` uninstalls the Flysystem module. Export the configuration afterwards, so the deployment doesn't reinstall it.
+- Run the database updates with the Flysystem module's code still available: `helfi_azure_fs_update_90401()` uninstalls the Flysystem module. Export the configuration afterwards, so the deployment doesn't reinstall it. Then remove `drupal/flysystem` from `composer.json`, if your project requires it.
 - Replace `$settings['flysystem']['azure']` with `$settings['helfi_azure_fs']` in `settings.php`: move the `config` values and `public_url_base` to the top level. The Flysystem settings are no longer used, so the blob storage isn't enabled until this is done. Keep `$settings['file_additional_public_schemes'] = ['azure'];`.
 - The file URIs (`azure://...`) and the blob names don't change, so no files need to be migrated.
 
